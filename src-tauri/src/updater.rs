@@ -9,7 +9,6 @@ pub const GITHUB_REPO: &str = "v_player";
 pub const INSTALLER_ASSET: &str = "VPlayer-Setup-x64.exe";
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct UpdateInfo {
     pub current_version: String,
     pub latest_version: String,
@@ -21,7 +20,6 @@ pub struct UpdateInfo {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct UpdateProgress {
     pub stage: String,
     pub received: u64,

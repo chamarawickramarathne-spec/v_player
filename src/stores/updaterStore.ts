@@ -177,7 +177,12 @@ export const useUpdaterStore = create<UpdaterState>((set, get) => ({
     }
     if (s.checking) return;
     await s.checkForUpdates();
-    const info = get().updateInfo;
+    const st = get();
+    const info = st.updateInfo;
+    if (st.checkError) {
+      set({ feedback: { type: "error", message: "Update check failed — check your internet connection" } });
+      return;
+    }
     if (info?.has_update) {
       await get().downloadUpdate();
     } else {

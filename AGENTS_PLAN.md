@@ -1,26 +1,22 @@
-# AGENTS_PLAN - One-Click Update Verification Release (Build 20 / v1.0.6)
+# AGENTS_PLAN - One-Click Update Root-Cause Fix + Verification (Build 21 / v1.0.7, Build 22 / v1.0.8)
 
 ## Goal
-Release v1.0.6 (version-only bump, no code change) so the installed v1.0.5 app can verify the one-click update flow end-to-end: click Update -> download -> auto-launch installer -> guided dialog -> install v1.0.6 -> title bar shows v1.0.6 -> Update button shows "Up to date" toast.
+Fix the actual updater bug (update detection never worked) and prove the one-click flow live.
 
-## Status (Build 19 - complete)
-- Build 19 (v1.0.5) DONE and released: updater.rs async + guided dialog + get_downloaded_installer; lib.rs registration; store auto-install + detectDownloadedUpdate; App.tsx startup; docs.
-- Verified: v1.0.5 installer attached to GitHub release, `releases/latest` returns v1.0.5.
-- Installed app is v1.0.5 (user installed it).
+## Root cause (Build 20 test exposed it)
+`UpdateInfo`/`UpdateProgress` in `updater.rs` had `#[serde(rename_all = "camelCase")]` -> IPC delivered camelCase fields, but the entire frontend reads snake_case (`has_update`, `latest_version`, `download_url`, ...). So `has_update` was always undefined -> app ALWAYS said "Up to date". Present since Build 14; this is the original "update not updating" bug. GitHub API was confirmed healthy (returns v1.0.6, rate limit 30/60).
 
-## Status (Build 20)
-- Version bumped 1.0.5 -> 1.0.6 in package.json, Cargo.toml, Cargo.lock, tauri.conf.json. DONE.
-- Docs AGENTS.md MOD 20 / CHANGELOG.md Build 20. DONE.
-- PENDING: build via `scripts/build.ps1`, commit + push, GitHub release v1.0.6.
-- After release: user clicks Update in v1.0.5 to verify one-click flow.
+## Status (Build 20 - complete)
+- v1.0.6 test release done; app kept saying "Up to date - v1.0.5" -> exposed the bug above.
 
-## Verify
-- Title bar shows v1.0.6 after install.
-- Clicking Update again shows "Up to date · v1.0.6" toast.
-- `releases/latest` returns v1.0.6 with VPlayer-Setup-x64.exe attached.
+## Plan - Build 21 (v1.0.7, the FIX)
+- [x] Remove both `#[serde(rename_all = "camelCase")]` in `updater.rs` (wire format becomes snake_case, matching TS + rest of repo).
+- [x] `updaterStore.ts` `oneClickUpdate`: show error toast when check FAILED instead of false "Up to date".
+- [x] Version 1.0.6 -> 1.0.7 (package.json, Cargo.toml, Cargo.lock, tauri.conf.json).
+- [x] Docs: AGENTS.md MOD 21, CHANGELOG.md Build 21.
+- [ ] Build `scripts/build.ps1`, commit, push, release v1.0.7.
+- User manually installs `release\VPlayer-Setup-x64.exe` (v1.0.7) - installed v1.0.5 cannot self-update.
 
----
-## Previous plan (Build 19) - completed
-- updater.rs async check/download + get_downloaded_installer + guided install dialog.
-- store: auto-install after download, detectDownloadedUpdate.
-- App.tsx startup detect. Version 1.0.5. Docs. Build + release v1.0.5 (DONE, commit 5330021).
+## Plan - Build 22 (v1.0.8, verification release)
+- Version bump 1.0.7 -> 1.0.8 (no code change), build, commit, release.
+- Verify in v1.0.7: badge shows "Download v1.0.8" -> one click -> download -> auto-install -> guided wizard -> v1.0.8 -> "Up to date - v1.0.8" toast.

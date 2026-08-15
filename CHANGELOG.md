@@ -2,7 +2,7 @@
 
 > This file is the memory for the V Player app build. Read this before making any changes.
 
-## v1.0.6 - Last Updated: 2026-08-15 (Build 20)
+## v1.0.7 - Last Updated: 2026-08-15 (Build 21)
 
 ---
 
@@ -524,3 +524,21 @@ Creates:
 #### Purpose
 134. No functional code change. Version bumped **1.0.5 -> 1.0.6** in `package.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, `src-tauri/tauri.conf.json` so the installed v1.0.5 app (which contains the v1.0.5 one-click auto-install updater) can be used to test the full flow live: click Update -> download -> auto-launch installer -> guided dialog -> install v1.0.6.
 135. Success criteria after install: title bar shows v1.0.6; clicking Update again shows the "Up to date - v1.0.6" toast.
+
+#### Result
+- v1.0.6 released, but the app kept reporting "Up to date - v1.0.5". This exposed the real root cause (Build 21): update detection had NEVER worked due to a serde camelCase mismatch.
+
+### Build 21 - FIX: Update Detection Never Worked - serde camelCase mismatch (2026-08-15)
+
+#### Root cause
+136. `UpdateInfo` and `UpdateProgress` in `src-tauri/src/updater.rs` were annotated `#[serde(rename_all = "camelCase")]`, so over Tauri IPC they serialize as `currentVersion`, `latestVersion`, `hasUpdate`, `downloadUrl`, `assetName`, `sizeBytes`, `releaseNotes`. Every frontend read uses snake_case (`has_update`, `latest_version`, `download_url`, `current_version`, `size_bytes`, `release_notes` in `src/types/index.ts`, `src/stores/updaterStore.ts`, `src/components/UpdateBadge.tsx`, `src/components/Settings/UpdatePanel.tsx`).
+137. Consequence: `has_update` was always `undefined` -> falsy, so the app ALWAYS reported "Up to date - vX.Y.Z", the badge never showed "Download vX", and `updateInfo.download_url` was undefined so `downloadUpdate()` bailed out early (badge downloads could never start). `UpdateProgress` fields (`stage`, `received`, `total`, `path`) are single words so they were unaffected - which is why progress/downloading appeared to work, masking the bug. These were the ONLY 2 `rename_all` attributes in the entire repo (settings/recent_files serialize snake_case and work fine).
+138. This bug existed since Build 14 (the initial updater commit) - it is the ORIGINAL "click update button not updating" bug.
+
+#### Fix
+139. `updater.rs` - removed both `#[serde(rename_all = "camelCase")]` attributes. Wire format is now snake_case, matching the TS types and the rest of the codebase. No frontend changes needed.
+140. `updaterStore.ts` - `oneClickUpdate` no longer reports "Up to date - vX" when the check FAILED (previously `updateInfo` stayed null after an error and the else branch misreported up-to-date). It now reads `checkError` after the check and shows an error toast: "Update check failed - check your internet connection".
+141. Version bumped to **1.0.7** in `package.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, `src-tauri/tauri.conf.json`.
+
+#### Verified
+- `npx tsc --noEmit` clean, `cargo check` clean (only pre-existing warnings), full build via `scripts/build.ps1`.

@@ -6,13 +6,20 @@
 V Player is a modern media player for Windows (Tauri v2 + React 19 + TypeScript + Vite) using mpv/libmpv as the media engine. An Android port lives in `v-player-android/`.
 
 ## Current Version
-- **v1.0.6** - last updated: 2026-08-15 (Build 20)
+- **v1.0.7** - last updated: 2026-08-15 (Build 21)
 
 ## Mod Log
+
+### MOD 21 (Build 21) - 2026-08-15 - FIX: Update Detection Never Worked (serde camelCase mismatch)
+- **Root cause**: `UpdateInfo`/`UpdateProgress` in `updater.rs` were serialized with `#[serde(rename_all = "camelCase")]`, so Tauri IPC delivered `hasUpdate`, `latestVersion`, `downloadUrl`, `currentVersion`, `sizeBytes`, `releaseNotes`. The frontend (types, updaterStore, UpdateBadge, UpdatePanel) reads snake_case (`has_update`, `latest_version`, `download_url`, ...). So `has_update` was ALWAYS undefined -> the app always reported "Up to date · vX.Y.Z", never showed "Download vX", and `download_url` undefined meant badge downloads could never start. Progress events worked (single-word fields), masking the bug. Present since Build 14 - this was the original "click update button not updating" bug.
+- `updater.rs`: removed both `#[serde(rename_all = "camelCase")]` attributes. Wire format is now snake_case, matching TS types and the rest of the codebase (settings/recent_files already serialize snake_case; these were the only 2 renames in the repo).
+- `updaterStore.ts`: `oneClickUpdate` no longer shows "Up to date · vX" when the check FAILED - it now shows an error toast ("Update check failed - check your internet connection").
+- Version bumped to 1.0.7.
 
 ### MOD 20 (Build 20) - 2026-08-15 - Release-only bump to verify one-click updater
 - No functional code change. Version bumped 1.0.5 -> 1.0.6 solely so the installed v1.0.5 app can test the one-click update flow end-to-end (click Update -> download -> auto-launch installer -> guided wizard -> install v1.0.6).
 - Verify after install: title bar shows v1.0.6; clicking Update again shows "Up to date · v1.0.6" toast.
+- **Result**: v1.0.6 was released but the app kept saying "Up to date · v1.0.5" -> exposed MOD 21 (the camelCase mismatch).
 
 ### MOD 19 (Build 19) - 2026-08-15 - Truly One-Click Update (auto-install + guided wizard)
 - **Root cause**: Update mechanics worked (verified: check hits GitHub, full installer downloads to `%APPDATA%\com.vplayer.desktop\updates\`) but the flow required a second "Install & Restart" click, then dropped the user into a bare NSIS wizard + exited the app. If that step was missed (or SmartScreen blocked the unsigned installer), it looked like "Update did nothing."
