@@ -24,4 +24,5 @@ Make the updater immune to GitHub API rate limits (Atom-feed fallback) and finis
 - [x] `updaterStore.ts`: passes `version: info.latest_version` on download.
 - [x] Manual cleanup of the existing stale leftover done (updates folder deleted).
 - [x] Version 1.0.11, docs, tsc + cargo check clean, built.
-- PENDING: release v1.0.11; user on v1.0.10 sees "Download v1.0.11" -> one-click -> v1.0.11 launches with a clean updates folder and normal badge (no "Install & Restart").
+- [x] Released v1.0.11 (Atom feed verified: first <entry><title> = V Player v1.0.11).
+- PENDING (user): open v1.0.10 app -> badge "Download v1.0.11" -> one-click update -> v1.0.11 launches with clean updates folder and normal badge (no "Install & Restart").
