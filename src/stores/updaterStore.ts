@@ -2,6 +2,11 @@ import { create } from "zustand";
 import { invoke, Channel } from "@tauri-apps/api/core";
 import type { UpdateInfo, UpdateProgress } from "../types";
 
+export interface UpdateFeedback {
+  type: "checking" | "upToDate" | "error" | "downloadStarted" | "downloaded";
+  message: string;
+}
+
 interface UpdaterState {
   appVersion: string;
   checking: boolean;
@@ -14,10 +19,14 @@ interface UpdaterState {
   total: number;
   downloadedPath: string | null;
   installError: string | null;
+  feedback: UpdateFeedback | null;
+  channel: Channel<UpdateProgress> | null;
   loadAppVersion: () => Promise<void>;
   checkForUpdates: () => Promise<void>;
   downloadUpdate: () => Promise<void>;
   installUpdate: () => Promise<void>;
+  oneClickUpdate: () => Promise<void>;
+  clearFeedback: () => void;
   reset: () => void;
 }
 
@@ -46,6 +55,8 @@ export const useUpdaterStore = create<UpdaterState>((set, get) => ({
   total: 0,
   downloadedPath: null,
   installError: null,
+  feedback: null,
+  channel: null,
 
   loadAppVersion: async () => {
     try {
@@ -58,12 +69,17 @@ export const useUpdaterStore = create<UpdaterState>((set, get) => ({
 
   checkForUpdates: async () => {
     if (get().checking) return;
-    set({ checking: true, checkError: null });
+    set({ checking: true, checkError: null, feedback: { type: "checking", message: "Checking for updates..." } });
     try {
       const info = (await invoke("check_for_update")) as UpdateInfo;
       set({ updateInfo: info, checking: false, checkedOnce: true, appVersion: info.current_version || get().appVersion });
     } catch (err) {
-      set({ checkError: String(err), checking: false, checkedOnce: true });
+      set({
+        checkError: String(err),
+        checking: false,
+        checkedOnce: true,
+        feedback: { type: "error", message: "Update check failed" },
+      });
     }
   },
 
@@ -77,20 +93,39 @@ export const useUpdaterStore = create<UpdaterState>((set, get) => ({
       total: 0,
       downloadedPath: null,
       installError: null,
+      feedback: { type: "downloadStarted", message: `Downloading v${info.latest_version}...` },
     });
     const channel = new Channel<UpdateProgress>();
     channel.onmessage = (msg) => {
+      if (msg.stage === "error") {
+        set({
+          downloading: false,
+          downloadStage: "error",
+          channel: null,
+          installError: msg.path ?? "Download failed",
+          feedback: { type: "error", message: "Download failed" },
+        });
+        return;
+      }
       set({
         downloadStage: msg.stage,
         received: msg.received,
         total: msg.total,
         downloadedPath: msg.path ?? null,
       });
+      if (msg.stage === "complete") {
+        set({
+          downloading: false,
+          channel: null,
+          feedback: { type: "downloaded", message: `v${info.latest_version} downloaded — install now` },
+        });
+      }
     };
+    set({ channel });
     try {
       await invoke("download_update", { url: info.download_url, channel });
     } catch (err) {
-      set({ installError: String(err), downloading: false, downloadStage: "error" });
+      set({ installError: String(err), downloading: false, downloadStage: "error", channel: null });
     }
   },
 
@@ -105,6 +140,29 @@ export const useUpdaterStore = create<UpdaterState>((set, get) => ({
     }
   },
 
+  oneClickUpdate: async () => {
+    const s = get();
+    if (s.downloading) return;
+    if (s.downloadStage === "complete" && s.downloadedPath) {
+      await s.installUpdate();
+      return;
+    }
+    if (s.updateInfo?.has_update) {
+      await s.downloadUpdate();
+      return;
+    }
+    if (s.checking) return;
+    await s.checkForUpdates();
+    const info = get().updateInfo;
+    if (info?.has_update) {
+      await get().downloadUpdate();
+    } else {
+      set({ feedback: { type: "upToDate", message: `Up to date · v${info?.current_version || s.appVersion}` } });
+    }
+  },
+
+  clearFeedback: () => set({ feedback: null }),
+
   reset: () =>
     set({
       checking: false,
@@ -117,5 +175,7 @@ export const useUpdaterStore = create<UpdaterState>((set, get) => ({
       total: 0,
       downloadedPath: null,
       installError: null,
+      feedback: null,
+      channel: null,
     }),
 }));

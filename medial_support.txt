@@ -9,13 +9,15 @@ V Player is a modern media player built for Windows, powered by the legendary mp
 
 The player is designed around a clean glassmorphism interface with light and dark themes, a fully customizable accent color, an auto-hiding control bar, a smart playlist with drag-and-drop reordering, and subtitle track selection. Enjoy keyboard shortcuts for everything, frame-by-frame stepping, playback speed control, and auto-advance through your playlist. V Player is built with Tauri v2 and React for a tiny footprint and native-level performance.
 
+Updates are one click away: the built-in updater checks GitHub releases, downloads the new installer with a live progress indicator, and offers Install & Restart - so you are always on the latest version.
+
 4. Text description for Facebook
 🎬 Meet V Player - the fastest, most beautiful media player for Windows!
 Powered by the mpv engine, it plays EVERYTHING - 70+ video, audio, and image formats - with hardware acceleration and buttery-smooth playback.
 ✨ Glassmorphism UI with dark/light themes
 ✨ Smart playlist with drag-and-drop reorder
 ✨ Keyboard shortcuts for everything
-✨ Auto-updates via GitHub
+✨ One-click auto-updates via GitHub
 Download now and experience your media like never before! 🚀 #VPlayer #MediaPlayer
 
 5. Tags (10)

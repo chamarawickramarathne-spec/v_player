@@ -135,55 +135,67 @@ pub fn download_update(
     let tmp_path = dir.join(format!("{}.part", INSTALLER_ASSET));
     let final_path = dir.join(INSTALLER_ASSET);
 
-    thread::spawn(move || -> Result<(), String> {
-        let _ = channel.send(UpdateProgress {
-            stage: "starting".to_string(),
-            received: 0,
-            total: 0,
-            path: None,
-        });
-
-        let resp = ureq::get(&url)
-            .set("User-Agent", "VPlayer-Updater")
-            .call()
-            .map_err(|e| e.to_string())?;
-
-        let total: u64 = resp
-            .header("Content-Length")
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(0);
-
-        let mut reader = resp.into_reader();
-        let mut file = File::create(&tmp_path).map_err(|e| e.to_string())?;
-        let mut received: u64 = 0;
-        let mut buf = [0u8; 64 * 1024];
-
-        loop {
-            let n = reader.read(&mut buf).map_err(|e| e.to_string())?;
-            if n == 0 {
-                break;
-            }
-            file.write_all(&buf[..n]).map_err(|e| e.to_string())?;
-            received += n as u64;
+    thread::spawn(move || {
+        let result: Result<(), String> = (|| {
             let _ = channel.send(UpdateProgress {
-                stage: "downloading".to_string(),
-                received,
-                total,
+                stage: "starting".to_string(),
+                received: 0,
+                total: 0,
                 path: None,
             });
+
+            let resp = ureq::get(&url)
+                .set("User-Agent", "VPlayer-Updater")
+                .call()
+                .map_err(|e| format!("Failed to download: {}", e))?;
+
+            let total: u64 = resp
+                .header("Content-Length")
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(0);
+
+            let mut reader = resp.into_reader();
+            let mut file = File::create(&tmp_path).map_err(|e| e.to_string())?;
+            let mut received: u64 = 0;
+            let mut buf = [0u8; 64 * 1024];
+
+            loop {
+                let n = reader.read(&mut buf).map_err(|e| e.to_string())?;
+                if n == 0 {
+                    break;
+                }
+                file.write_all(&buf[..n]).map_err(|e| e.to_string())?;
+                received += n as u64;
+                let _ = channel.send(UpdateProgress {
+                    stage: "downloading".to_string(),
+                    received,
+                    total,
+                    path: None,
+                });
+            }
+
+            file.flush().map_err(|e| e.to_string())?;
+            drop(file);
+            std::fs::rename(&tmp_path, &final_path).map_err(|e| e.to_string())?;
+
+            let _ = channel.send(UpdateProgress {
+                stage: "complete".to_string(),
+                received,
+                total,
+                path: Some(final_path.to_string_lossy().to_string()),
+            });
+            Ok(())
+        })();
+
+        if let Err(e) = result {
+            eprintln!("[updater] download failed: {}", e);
+            let _ = channel.send(UpdateProgress {
+                stage: "error".to_string(),
+                received: 0,
+                total: 0,
+                path: Some(e),
+            });
         }
-
-        file.flush().map_err(|e| e.to_string())?;
-        drop(file);
-        std::fs::rename(&tmp_path, &final_path).map_err(|e| e.to_string())?;
-
-        let _ = channel.send(UpdateProgress {
-            stage: "complete".to_string(),
-            received,
-            total,
-            path: Some(final_path.to_string_lossy().to_string()),
-        });
-        Ok(())
     });
 
     Ok(())

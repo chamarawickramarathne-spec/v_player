@@ -227,12 +227,7 @@ export default function App() {
             </span>
 
             {/* Version + update */}
-            <UpdateBadge
-              onOpenUpdates={() => {
-                setSettingsTab("about");
-                setSettingsOpen(true);
-              }}
-            />
+            <UpdateBadge />
           </div>
 
           {/* Right: Actions */}

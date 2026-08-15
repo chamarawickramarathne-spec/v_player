@@ -2,7 +2,7 @@
 
 > This file is the memory for the V Player app build. Read this before making any changes.
 
-## v1.0.2 - Last Updated: 2026-08-15 (Build 16)
+## v1.0.3 - Last Updated: 2026-08-15 (Build 17)
 
 ---
 
@@ -474,3 +474,19 @@ Creates:
 111. `SettingsPanel.tsx` - removed the local `useState<AppSettings>`; settings are now read and written directly through `useSettingsStore` (single source of truth). `loadSettings` and `saveSettings` both go through the store, so App re-applies theme/accent live.
 112. `App.tsx` - startup effect now calls `loadSettings()` so persisted theme/accent/volume/hwdec apply immediately on launch.
 113. Version bumped to **1.0.2**.
+
+### Build 17 - One-Click Updater + Up-to-Date Feedback (2026-08-15)
+
+#### Bug Fix: "Click update button not updating new version"
+114. **Root cause**: The user was already on the latest release (v1.0.2). Clicking "Update" ran a silent `checkForUpdates()` that found nothing and gave zero visible feedback, so it looked broken. The button also wasn't a real one-click flow - when an update existed it only opened Settings > About, where the user still had to click "Download Update" then "Install & Restart".
+
+#### Feature: One-click update in the title bar
+115. `updaterStore.ts` - added `oneClickUpdate()` action: if an update is known it auto-downloads; if not it runs the check and auto-downloads when a newer version exists; if up-to-date it records a `feedback` message. Added `feedback { type, message }` state + `clearFeedback()`. The download `Channel` is now held in store state (not a local variable) so progress events can't be dropped by GC mid-download. Channel handler now also reacts to an `error` stage (clears downloading state, shows feedback).
+116. `UpdateBadge.tsx` - rewritten as a true one-click updater: click checks/downloads/installs directly (no Settings trip). While downloading it shows a spinner + `%` on the button; when ready the button becomes "Install & Restart"; clicking that launches the installer and exits the app. Renders a transient toast near the title bar (auto-hides ~3s) for "Up to date · vX.Y.Z", "Download failed", and "downloaded — install now" states. Removed the `onOpenUpdates` prop (and its usage in `App.tsx`).
+117. `updater.rs` - `download_update` thread now sends an `error` stage over the channel on failure (previously the error was swallowed silently, leaving the UI stuck).
+118. `global.css` - added `fadeSlideIn` keyframe for the toast animation.
+119. Version bumped to **1.0.3** in `package.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, `src-tauri/tauri.conf.json`.
+
+#### Verified
+- `npx tsc --noEmit` clean, `cargo check` clean, full build via `scripts/build.ps1`.
+- GitHub `releases/latest` returns v1.0.3 (when released) with `VPlayer-Setup-x64.exe`; the installed v1.0.2 app will now detect it and one-click upgrade.

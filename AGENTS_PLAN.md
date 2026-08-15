@@ -1,25 +1,34 @@
-# AGENTS_PLAN - Update Feature (Build 14)
+# AGENTS_PLAN - One-Click Updater + Up-to-Date Feedback (Build 17 / v1.0.3)
 
 ## Goal
-Add a GIT-based update feature to the V Player desktop app per global rules:
-- Check GitHub releases for newer versions.
-- Download installer (fixed name, no version) and launch the NSIS wizard.
-- App exits after launching installer.
+Fix the confusing "click Update button not updating new version" behavior:
+- User was already on latest release (v1.0.2) -> silent re-check, zero feedback.
+- Update button was not a one-click flow (only opened Settings > About).
+
+## Root Cause
+- `check_for_update` (GitHub `releases/latest`) works correctly; API returns v1.0.2 with asset.
+- When up-to-date, `UpdateBadge` click ran a silent `checkForUpdates()` with no visible result.
+- When an update existed, the badge only opened Settings -> About; user had to click Download, then Install.
 
 ## Plan
-1. Git repo init + remote `chamarawickramarathne-spec/v_player`. ✅ Done
-2. `.gitignore` extended (Android build output, release/). ✅ Done
-3. `scripts/build.ps1` -> fixed-name installer `release/VPlayer-Setup-x64.exe`. ✅ Done
-4. Rust `updater.rs` (check/download/install + get_app_version), Cargo deps `semver`, `ureq`, register in `lib.rs`. ✅ Done
-5. `updaterStore.ts` Zustand store with progress channel. ✅ Done
-6. `UpdatePanel.tsx` (About tab) + `UpdateBadge.tsx` (title bar). ✅ Done
-7. Wire into `App.tsx` (startup check + badge + controlled settings tab) and `SettingsPanel.tsx`. ✅ Done
-8. Docs: `AGENTS.md`, `AGENTS_PLAN.md`, `medial_support.txt`, `CHANGELOG.md` Build 14.
-9. Verify: `npx tsc --noEmit` (clean), `npx vite build` (clean), `npm run tauri build` (running).
-10. Commit + push + create GitHub release v1.0.0 with `VPlayer-Setup-x64.exe` asset.
+1. `src/stores/updaterStore.ts`
+   - Add `oneClickUpdate()`: known update -> auto-download; unknown -> check then auto-download if newer; up-to-date -> set feedback.
+   - Add `feedback { type, message }` + `clearFeedback()`.
+   - Hold download `Channel` in store state (not a local var) so progress events can't be GC-dropped.
+2. `src/components/UpdateBadge.tsx`
+   - One-click: click checks/downloads/installs directly (no settings trip).
+   - Downloading: show spinner + percent on button.
+   - Ready: button becomes "Install & Restart".
+   - Up-to-date / error: transient toast near title bar, auto-hides ~3s.
+3. Version bump 1.0.2 -> 1.0.3 in `package.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, `src-tauri/tauri.conf.json`.
+4. Docs: `AGENTS.md` MOD 17, `CHANGELOG.md`, regenerate `medial_support.txt`.
+5. Build: `.\scripts\build.ps1` -> `release/VPlayer-Setup-x64.exe`.
+6. Commit + push + GitHub release v1.0.3 with asset.
+7. End-to-end test: installed v1.0.2 detects v1.0.3, one click downloads + installs.
 
 ## Status
-- Steps 1-9 implemented and verified: `tsc` clean, `vite build` clean, `npm run tauri build` success (3m 42s), app launches, installer renamed to `release/VPlayer-Setup-x64.exe`.
-- Committed and pushed to `origin/main`.
-- GitHub release **v1.0.0** created with asset `VPlayer-Setup-x64.exe`.
-- PENDING (future): bump versions + run `.\scripts\build.ps1` + release for each new version.
+- Steps 1-4 DONE: updaterStore oneClickUpdate + feedback + channel-in-store; UpdateBadge one-click + spinner/% + toast; updater.rs error stage; version 1.0.3; docs updated.
+- Step 5 PENDING: `.\scripts\build.ps1`.
+- Steps 6-7 PENDING: commit/push/release v1.0.3, then end-to-end test.
+- Verified: `npx tsc --noEmit` clean, `cargo check` clean.
+
