@@ -19,6 +19,7 @@ Add a GIT-based update feature to the V Player desktop app per global rules:
 10. Commit + push + create GitHub release v1.0.0 with `VPlayer-Setup-x64.exe` asset.
 
 ## Status
-- Steps 1-9 implemented/verified except final release upload.
-- PENDING: commit, push, GitHub release creation (requires user action/credentials).
-- PENDING (manual): run `.\scripts\build.ps1` for future versions.
+- Steps 1-9 implemented and verified: `tsc` clean, `vite build` clean, `npm run tauri build` success (3m 42s), app launches, installer renamed to `release/VPlayer-Setup-x64.exe`.
+- Committed and pushed to `origin/main`.
+- GitHub release **v1.0.0** created with asset `VPlayer-Setup-x64.exe`.
+- PENDING (future): bump versions + run `.\scripts\build.ps1` + release for each new version.
