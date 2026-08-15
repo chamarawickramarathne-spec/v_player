@@ -2,7 +2,7 @@
 
 > This file is the memory for the V Player app build. Read this before making any changes.
 
-## v1.0.5 - Last Updated: 2026-08-15 (Build 19)
+## v1.0.6 - Last Updated: 2026-08-15 (Build 20)
 
 ---
 
@@ -518,3 +518,9 @@ Creates:
 
 #### Verified
 - `npx tsc --noEmit` clean, `cargo check` clean (only pre-existing warnings), full build via `scripts/build.ps1`.
+
+### Build 20 - Release-only bump: verify one-click updater (2026-08-15)
+
+#### Purpose
+134. No functional code change. Version bumped **1.0.5 -> 1.0.6** in `package.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, `src-tauri/tauri.conf.json` so the installed v1.0.5 app (which contains the v1.0.5 one-click auto-install updater) can be used to test the full flow live: click Update -> download -> auto-launch installer -> guided dialog -> install v1.0.6.
+135. Success criteria after install: title bar shows v1.0.6; clicking Update again shows the "Up to date - v1.0.6" toast.
