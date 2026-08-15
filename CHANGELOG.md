@@ -2,7 +2,7 @@
 
 > This file is the memory for the V Player app build. Read this before making any changes.
 
-## v1.0.9 - Last Updated: 2026-08-15 (Build 23)
+## v1.0.10 - Last Updated: 2026-08-15 (Build 24)
 
 ---
 
@@ -565,3 +565,9 @@ Creates:
 #### Verified
 - Atom feed confirmed live: `GET https://github.com/chamarawickramarathne-spec/v_player/releases.atom` returns 200 with first `<entry><title>` = v1.0.8 while the API is 403 rate-limited.
 - `npx tsc --noEmit` clean, `cargo check` clean (only pre-existing warnings), full build via `scripts/build.ps1`.
+
+### Build 24 - Release-only bump: verify the fixed updater (2026-08-15)
+
+#### Purpose
+148. No functional code change. Version bumped **1.0.9 -> 1.0.10** in `package.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, `src-tauri/tauri.conf.json` so the fixed v1.0.9 app (MOD 21 serde fix + MOD 23 Atom-feed fallback) can verify the one-click update flow live even while the GitHub API rate limit is exhausted: badge "Download v1.0.10" -> click -> download -> auto-launch installer -> guided wizard -> install v1.0.10 -> "Up to date - v1.0.10" toast.
+149. Success criteria: after v1.0.10 is installed, title bar shows v1.0.10; clicking Update again shows the "Up to date - v1.0.10" toast.

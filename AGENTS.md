@@ -6,9 +6,12 @@
 V Player is a modern media player for Windows (Tauri v2 + React 19 + TypeScript + Vite) using mpv/libmpv as the media engine. An Android port lives in `v-player-android/`.
 
 ## Current Version
-- **v1.0.9** - last updated: 2026-08-15 (Build 23)
+- **v1.0.10** - last updated: 2026-08-15 (Build 24)
 
 ## Mod Log
+
+### MOD 24 (Build 24) - 2026-08-15 - Release-only bump to verify fixed updater
+- No functional code change. Version bumped 1.0.9 -> 1.0.10 so the fixed v1.0.9 app can verify the one-click update flow live (badge "Download v1.0.10" -> click -> download -> auto-install -> guided wizard -> v1.0.10 -> "Up to date · v1.0.10" toast). Uses the MOD 23 Atom-feed fallback, so it works even while the GitHub API rate limit is exhausted.
 
 ### MOD 23 (Build 23) - 2026-08-15 - Updater resilience: Atom-feed fallback + real error messages
 - **Root cause**: During v1.0.8 verification, GitHub's unauthenticated API rate limit (60/hr per IP) was exhausted (403 on `releases/latest`), so the app's check failed and the toast said "Update check failed". The updater depended entirely on the rate-limited `api.github.com` endpoint.
