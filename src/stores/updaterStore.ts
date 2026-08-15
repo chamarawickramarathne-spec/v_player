@@ -75,11 +75,12 @@ export const useUpdaterStore = create<UpdaterState>((set, get) => ({
       const info = (await invoke("check_for_update")) as UpdateInfo;
       set({ updateInfo: info, checking: false, checkedOnce: true, appVersion: info.current_version || get().appVersion });
     } catch (err) {
+      const m = String(err);
       set({
-        checkError: String(err),
+        checkError: m,
         checking: false,
         checkedOnce: true,
-        feedback: { type: "error", message: "Update check failed" },
+        feedback: { type: "error", message: m },
       });
     }
   },
@@ -180,7 +181,7 @@ export const useUpdaterStore = create<UpdaterState>((set, get) => ({
     const st = get();
     const info = st.updateInfo;
     if (st.checkError) {
-      set({ feedback: { type: "error", message: "Update check failed — check your internet connection" } });
+      set({ feedback: { type: "error", message: st.checkError } });
       return;
     }
     if (info?.has_update) {

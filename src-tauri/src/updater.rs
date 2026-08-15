@@ -34,21 +34,32 @@ fn releases_latest_url() -> String {
     )
 }
 
+fn releases_atom_url() -> String {
+    format!(
+        "https://github.com/{}/{}/releases.atom",
+        GITHUB_OWNER, GITHUB_REPO
+    )
+}
+
+fn github_error(e: ureq::Error) -> String {
+    match e {
+        ureq::Error::Status(code, _) if code == 403 || code == 429 => {
+            "GitHub API rate limit reached - try again in a few minutes".to_string()
+        }
+        other => format!("Failed to reach GitHub: {}", other),
+    }
+}
+
 fn strip_v(tag: &str) -> &str {
     tag.strip_prefix('v').unwrap_or(tag)
 }
 
-#[tauri::command]
-pub fn get_app_version(app: AppHandle) -> Result<String, String> {
-    Ok(app.package_info().version.to_string())
-}
-
-fn do_check_for_update(current: &str) -> Result<UpdateInfo, String> {
+fn api_latest() -> Result<serde_json::Value, String> {
     let resp = ureq::get(&releases_latest_url())
-        .set("User-Agent", &format!("VPlayer/{}", current))
+        .set("User-Agent", "VPlayer-Updater")
         .set("Accept", "application/vnd.github+json")
         .call()
-        .map_err(|e| format!("Failed to reach GitHub: {}", e))?;
+        .map_err(github_error)?;
 
     let json: serde_json::Value =
         serde_json::from_str(&resp.into_string().map_err(|e| e.to_string())?)
@@ -58,9 +69,32 @@ fn do_check_for_update(current: &str) -> Result<UpdateInfo, String> {
         return Err(format!("GitHub API error: {}", message));
     }
 
-    let latest = strip_v(json["tag_name"].as_str().unwrap_or("")).to_string();
-    let release_notes = json["body"].as_str().unwrap_or("").to_string();
+    Ok(json)
+}
 
+fn atom_latest_tag() -> Result<String, String> {
+    let resp = ureq::get(&releases_atom_url())
+        .set("User-Agent", "VPlayer-Updater")
+        .call()
+        .map_err(|e| format!("Failed to reach GitHub releases feed: {}", e))?;
+
+    let body = resp.into_string().map_err(|e| e.to_string())?;
+    let start = body
+        .find("<entry")
+        .ok_or_else(|| "No releases found in feed".to_string())?;
+    let entry = &body[start..];
+    let title_start = entry
+        .find("<title>")
+        .ok_or_else(|| "No title in feed entry".to_string())?
+        + "<title>".len();
+    let title_end = entry[title_start..]
+        .find("</title>")
+        .map(|i| title_start + i)
+        .ok_or_else(|| "No closing title in feed entry".to_string())?;
+    Ok(entry[title_start..title_end].trim().to_string())
+}
+
+fn asset_from_json(json: &serde_json::Value) -> (String, String, Option<u64>) {
     let assets = json["assets"].as_array().cloned().unwrap_or_default();
     let asset = assets
         .iter()
@@ -73,15 +107,55 @@ fn do_check_for_update(current: &str) -> Result<UpdateInfo, String> {
                     .unwrap_or(false)
             })
         });
-
-    let (asset_name, download_url, size_bytes) = match asset {
+    match asset {
         Some(a) => (
             a["name"].as_str().unwrap_or("").to_string(),
             a["browser_download_url"].as_str().unwrap_or("").to_string(),
             a["size"].as_u64(),
         ),
         None => (String::new(), String::new(), None),
-    };
+    }
+}
+
+fn download_url_for_tag(tag: &str) -> String {
+    format!(
+        "https://github.com/{}/{}/releases/download/v{}/{}",
+        GITHUB_OWNER, GITHUB_REPO, tag, INSTALLER_ASSET
+    )
+}
+
+#[tauri::command]
+pub fn get_app_version(app: AppHandle) -> Result<String, String> {
+    Ok(app.package_info().version.to_string())
+}
+
+fn do_check_for_update(current: &str) -> Result<UpdateInfo, String> {
+    let (latest, release_notes, asset_name, download_url, size_bytes) =
+        match api_latest() {
+            Ok(json) => {
+                let tag = strip_v(json["tag_name"].as_str().unwrap_or("")).to_string();
+                let notes = json["body"].as_str().unwrap_or("").to_string();
+                let (name, url, size) = asset_from_json(&json);
+                (tag, notes, name, url, size)
+            }
+            Err(api_err) => {
+                // The Atom releases feed is served by github.com, not the API, so it is
+                // not subject to the 60/hr unauthenticated API rate limit.
+                match atom_latest_tag() {
+                    Ok(tag) => {
+                        let url = download_url_for_tag(&tag);
+                        (
+                            tag,
+                            String::new(),
+                            INSTALLER_ASSET.to_string(),
+                            url,
+                            None,
+                        )
+                    }
+                    Err(_) => return Err(api_err),
+                }
+            }
+        };
 
     let has_update = if latest.is_empty() {
         false

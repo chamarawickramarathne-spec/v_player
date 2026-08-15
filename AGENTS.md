@@ -6,12 +6,19 @@
 V Player is a modern media player for Windows (Tauri v2 + React 19 + TypeScript + Vite) using mpv/libmpv as the media engine. An Android port lives in `v-player-android/`.
 
 ## Current Version
-- **v1.0.8** - last updated: 2026-08-15 (Build 22)
+- **v1.0.9** - last updated: 2026-08-15 (Build 23)
 
 ## Mod Log
 
+### MOD 23 (Build 23) - 2026-08-15 - Updater resilience: Atom-feed fallback + real error messages
+- **Root cause**: During v1.0.8 verification, GitHub's unauthenticated API rate limit (60/hr per IP) was exhausted (403 on `releases/latest`), so the app's check failed and the toast said "Update check failed". The updater depended entirely on the rate-limited `api.github.com` endpoint.
+- `updater.rs`: `do_check_for_update` now tries the API first; on ANY failure it falls back to the GitHub **Atom releases feed** (`https://github.com/<owner>/<repo>/releases.atom`), which is served by `github.com` (not the API) and is NOT rate-limited. The fallback parses the newest `<entry><title>` as the tag and builds the installer URL deterministically (`releases/download/v<tag>/VPlayer-Setup-x64.exe`); size/notes are omitted in fallback mode. Added `github_error()` which maps HTTP 403/429 to "GitHub API rate limit reached - try again in a few minutes" (only surfaced if BOTH sources fail).
+- `updaterStore.ts`: check failures now surface the backend's real error message in the toast (e.g. rate limit vs network), instead of a hardcoded generic string.
+- Version bumped to 1.0.9.
+
 ### MOD 22 (Build 22) - 2026-08-15 - Verification release for one-click updater
 - No functional code change. Version bumped 1.0.7 -> 1.0.8 so the fixed v1.0.7 app can verify the one-click update flow live: badge shows "Download v1.0.8" -> click -> download -> auto-install -> guided wizard -> v1.0.8 -> "Up to date · v1.0.8" toast. Confirms MOD 21 (serde fix) works end-to-end.
+- **Result**: verification was blocked by the GitHub API rate limit (403), exposing the MOD 23 resilience gap.
 
 ### MOD 21 (Build 21) - 2026-08-15 - FIX: Update Detection Never Worked (serde camelCase mismatch)
 - **Root cause**: `UpdateInfo`/`UpdateProgress` in `updater.rs` were serialized with `#[serde(rename_all = "camelCase")]`, so Tauri IPC delivered `hasUpdate`, `latestVersion`, `downloadUrl`, `currentVersion`, `sizeBytes`, `releaseNotes`. The frontend (types, updaterStore, UpdateBadge, UpdatePanel) reads snake_case (`has_update`, `latest_version`, `download_url`, ...). So `has_update` was ALWAYS undefined -> the app always reported "Up to date · vX.Y.Z", never showed "Download vX", and `download_url` undefined meant badge downloads could never start. Progress events worked (single-word fields), masking the bug. Present since Build 14 - this was the original "click update button not updating" bug.

@@ -2,7 +2,7 @@
 
 > This file is the memory for the V Player app build. Read this before making any changes.
 
-## v1.0.8 - Last Updated: 2026-08-15 (Build 22)
+## v1.0.9 - Last Updated: 2026-08-15 (Build 23)
 
 ---
 
@@ -548,3 +548,20 @@ Creates:
 #### Purpose
 142. No functional code change. Version bumped **1.0.7 -> 1.0.8** in `package.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, `src-tauri/tauri.conf.json` so the fixed v1.0.7 app (which contains the MOD 21 serde fix) can verify the one-click update flow live: badge shows "Download v1.0.8" -> click -> download -> auto-launch installer -> guided wizard -> install v1.0.8 -> "Up to date - v1.0.8" toast. Proves update detection + one-click update work end-to-end.
 143. Success criteria: after v1.0.8 is installed, title bar shows v1.0.8; clicking Update again shows the "Up to date - v1.0.8" toast.
+
+#### Result
+- Verification was blocked: GitHub's unauthenticated API rate limit (60/hr per IP) was exhausted during diagnostics, so the app's check failed with 403 and (in v1.0.7) showed the "Update check failed" error toast. This exposed the updater's single-point-of-failure on `api.github.com` -> fixed in Build 23.
+
+### Build 23 - Updater resilience: Atom-feed fallback + real error messages (2026-08-15)
+
+#### Root cause
+144. `check_for_update` depended entirely on `https://api.github.com/repos/{owner}/{repo}/releases/latest`, which is rate-limited to 60 unauthenticated requests/hour per IP. When that limit is hit (many app launches/checks in an hour, shared/CGNAT IPs, or developer diagnostics), GitHub returns HTTP 403 and the app's check fails -> user sees "Update check failed" even though the internet is fine.
+
+#### Fix
+145. `updater.rs` - `do_check_for_update` now tries the GitHub API first. On ANY failure (rate limit or otherwise) it falls back to the **Atom releases feed** (`https://github.com/<owner>/<repo>/releases.atom`), which is served by `github.com` itself and is NOT API-rate-limited. The fallback parses the newest `<entry><title>` as the latest tag and builds the installer URL deterministically (`releases/download/v<tag>/VPlayer-Setup-x64.exe`); `size_bytes` and `release_notes` are omitted in fallback mode (frontend already handles null). Added `github_error()` mapping HTTP 403/429 to a clear "GitHub API rate limit reached - try again in a few minutes" message, surfaced only if BOTH sources fail.
+146. `updaterStore.ts` - `checkForUpdates` error path and `oneClickUpdate`'s failed-check branch now show the backend's real error message (e.g. rate limit vs no internet) instead of a hardcoded generic string.
+147. Version bumped to **1.0.9** in `package.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, `src-tauri/tauri.conf.json`.
+
+#### Verified
+- Atom feed confirmed live: `GET https://github.com/chamarawickramarathne-spec/v_player/releases.atom` returns 200 with first `<entry><title>` = v1.0.8 while the API is 403 rate-limited.
+- `npx tsc --noEmit` clean, `cargo check` clean (only pre-existing warnings), full build via `scripts/build.ps1`.
