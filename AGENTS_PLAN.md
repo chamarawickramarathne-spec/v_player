@@ -13,6 +13,7 @@ Make the updater immune to GitHub API rate limits (Atom-feed fallback) and finis
 - [x] `updaterStore.ts`: real error messages in toasts.
 - [x] Version 1.0.9, docs, build, commit 089b738, released v1.0.9.
 
-## Plan - Build 24 (v1.0.10, verification release)
-- Version bump 1.0.9 -> 1.0.10, build, commit, release. IN PROGRESS.
-- Verify in v1.0.9: badge shows "Download v1.0.10" (via atom, even while API is rate-limited) -> one click -> download -> auto-install -> guided wizard -> v1.0.10 -> "Up to date - v1.0.10" toast.
+## Plan - Build 24 (v1.0.10, verification release) - DONE
+- [x] Version bump 1.0.9 -> 1.0.10, build, commit c74e217, released v1.0.10.
+- [x] Atom feed verified showing first entry <title>v1.0.10</title>.
+- PENDING (user): install v1.0.9 manually, open app -> badge "Download v1.0.10" -> one-click update test.
