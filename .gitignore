@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+target/
+release/
+
+# Rust
+src-tauri/target/
+
+# Android
+v-player-android/app/build/
+v-player-android/.gradle/
+v-player-android/.idea/
+v-player-android/local.properties
+v-player-android/build/
+*.apk
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local

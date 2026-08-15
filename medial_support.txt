@@ -1,0 +1,32 @@
+1. Title for application
+V Player - Modern Media Player for Windows
+
+2. Short description
+V Player is a fast, beautiful media player for Windows powered by mpv. It plays virtually any video, audio, and image format with hardware-accelerated decoding, a smart playlist, and a glassmorphism dark/light UI.
+
+3. Long description
+V Player is a modern media player built for Windows, powered by the legendary mpv engine for maximum format support and smooth hardware-accelerated playback. It plays over 70 media formats - including MP4, MKV, AVI, MOV, WebM, FLAC, and more - in video, audio, and image.
+
+The player is designed around a clean glassmorphism interface with light and dark themes, a fully customizable accent color, an auto-hiding control bar, a smart playlist with drag-and-drop reordering, and subtitle track selection. Enjoy keyboard shortcuts for everything, frame-by-frame stepping, playback speed control, and auto-advance through your playlist. V Player is built with Tauri v2 and React for a tiny footprint and native-level performance.
+
+4. Text description for Facebook
+🎬 Meet V Player - the fastest, most beautiful media player for Windows!
+Powered by the mpv engine, it plays EVERYTHING - 70+ video, audio, and image formats - with hardware acceleration and buttery-smooth playback.
+✨ Glassmorphism UI with dark/light themes
+✨ Smart playlist with drag-and-drop reorder
+✨ Keyboard shortcuts for everything
+✨ Auto-updates via GitHub
+Download now and experience your media like never before! 🚀 #VPlayer #MediaPlayer
+
+5. Tags (10)
+#VPlayer #MediaPlayer #WindowsApp #VideoPlayer #Mpv #FreeSoftware #MusicPlayer #Playlist #Tech #OpenSource
+
+6. Image prompts (5)
+1. A sleek dark-mode media player window floating on a deep indigo gradient background, glassmorphism UI with translucent panels, glowing purple accent play button, cinematic mood, high detail.
+2. Close-up of a modern video player interface showing a vivid nature video with a translucent control bar at the bottom, soft glass blur, indigo and violet accent colors, futuristic minimal design.
+3. A music player screen with a glowing waveform visualization and a glass playlist panel on the right, dark theme with purple gradient accents, premium tech aesthetic, 3D depth.
+4. Minimalist app icon for a media player: a rounded square with a play triangle gradient (indigo to violet to purple) on a dark background, soft glow, flat modern vector style.
+5. Split-screen comparison of the app in light and dark themes, both showing glassmorphism panels, playlist sidebar, and a playing video, floating UI mockup style, clean product shot.
+
+7. Note
+Regenerate this file content after every app modification.

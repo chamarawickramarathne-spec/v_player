@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="vplayer_background">#FF0F0F23</color>
+    <color name="vplayer_surface">#FF1A1A2E</color>
+    <color name="vplayer_accent">#FF6C63FF</color>
+    <color name="vplayer_accent_dark">#FF5A52D5</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>
