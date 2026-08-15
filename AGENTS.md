@@ -6,9 +6,16 @@
 V Player is a modern media player for Windows (Tauri v2 + React 19 + TypeScript + Vite) using mpv/libmpv as the media engine. An Android port lives in `v-player-android/`.
 
 ## Current Version
-- **v1.0.3** - last updated: 2026-08-15 (Build 17)
+- **v1.0.4** - last updated: 2026-08-15 (Build 18)
 
 ## Mod Log
+
+### MOD 18 (Build 18) - 2026-08-15 - Remove Non-Functional Language Setting
+- **Root cause**: The Language dropdown in Settings > General was dead UI - nothing reads `settings.language` (entire UI is hardcoded English).
+- Removed `language` from `AppSettings` in `src-tauri/src/lib.rs` (struct + Default), `AppSettings` interface in `src/types/index.ts`, `defaultSettings` in `src/stores/settingsStore.ts`, and the Language label/select block in `src/components/Settings/SettingsPanel.tsx`.
+- No migration needed: serde ignores the stale `language` key in persisted `~/.vplayer/settings.json`.
+- Left untouched: `tauri.conf.json` `languages` (NSIS installer UI) and Android track-metadata `language` fields.
+- Version bumped to 1.0.4.
 
 ### MOD 17 (Build 17) - 2026-08-15 - One-Click Updater + Up-to-Date Feedback
 - **Root cause**: User on latest release (v1.0.2) clicked "Update" -> silent re-check, no feedback; looked broken. Button also wasn't one-click (only opened Settings > About).

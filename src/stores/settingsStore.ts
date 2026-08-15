@@ -21,7 +21,6 @@ const defaultSettings: AppSettings = {
   volume: 1.0,
   auto_fit_window: true,
   show_always_on_top: false,
-  language: "en",
 };
 
 export const useSettingsStore = create<SettingsState>((set) => ({

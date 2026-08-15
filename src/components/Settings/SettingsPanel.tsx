@@ -248,39 +248,6 @@ export default function SettingsPanel({ isOpen, onClose, activeTab, onTabChange 
                   ))}
                 </div>
               </div>
-
-              {/* Language */}
-              <div>
-                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "10px", color: "var(--text-primary)" }}>
-                  Language
-                </label>
-                <select
-                  value={settings.language}
-                  onChange={(e) => saveSettings({ ...settings, language: e.target.value })}
-                  style={{
-                    width: "100%",
-                    padding: "10px 14px",
-                    borderRadius: "10px",
-                    border: "1px solid var(--border)",
-                    background: "var(--bg-tertiary)",
-                    color: "var(--text-primary)",
-                    fontSize: "13px",
-                    outline: "none",
-                    cursor: "pointer",
-                    transition: "border-color 0.2s",
-                  }}
-                  onFocus={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
-                  onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
-                >
-                  <option value="en">English</option>
-                  <option value="zh">Chinese</option>
-                  <option value="ja">Japanese</option>
-                  <option value="ko">Korean</option>
-                  <option value="es">Spanish</option>
-                  <option value="fr">French</option>
-                  <option value="de">German</option>
-                </select>
-              </div>
             </div>
           )}
 

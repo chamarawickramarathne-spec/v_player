@@ -31,7 +31,6 @@ pub struct AppSettings {
     pub volume: f64,
     pub auto_fit_window: bool,
     pub show_always_on_top: bool,
-    pub language: String,
 }
 
 impl Default for AppSettings {
@@ -43,7 +42,6 @@ impl Default for AppSettings {
             volume: 1.0,
             auto_fit_window: true,
             show_always_on_top: false,
-            language: "en".to_string(),
         }
     }
 }

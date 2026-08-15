@@ -2,7 +2,7 @@
 
 > This file is the memory for the V Player app build. Read this before making any changes.
 
-## v1.0.3 - Last Updated: 2026-08-15 (Build 17)
+## v1.0.4 - Last Updated: 2026-08-15 (Build 18)
 
 ---
 
@@ -490,3 +490,18 @@ Creates:
 #### Verified
 - `npx tsc --noEmit` clean, `cargo check` clean, full build via `scripts/build.ps1`.
 - GitHub `releases/latest` returns v1.0.3 (when released) with `VPlayer-Setup-x64.exe`; the installed v1.0.2 app will now detect it and one-click upgrade.
+
+### Build 18 - Remove Non-Functional Language Setting (2026-08-15)
+
+#### Cleanup: Language dropdown removed
+120. **Root cause**: The Language dropdown in Settings > General was dead UI. Nothing in the app reads `settings.language` (the entire UI is hardcoded English), so changing it had no effect.
+121. Removed `language` from `AppSettings` in `src-tauri/src/lib.rs` (struct field + `Default`).
+122. Removed `language` from the `AppSettings` interface in `src/types/index.ts`.
+123. Removed `language: "en"` from `defaultSettings` in `src/stores/settingsStore.ts`.
+124. Removed the Language label + `<select>` block (7 options) from `src/components/Settings/SettingsPanel.tsx`; other settings (`saveSettings` helper) untouched.
+125. No migration needed - serde ignores the stale `language` key in persisted `~/.vplayer/settings.json` and it is dropped on the next save.
+126. Left untouched: `tauri.conf.json` `languages` (NSIS installer UI language) and `v-player-android/**` `language` fields (audio/subtitle track metadata).
+127. Version bumped to **1.0.4** in `package.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, `src-tauri/tauri.conf.json`.
+
+#### Verified
+- `npx tsc --noEmit` clean, `cargo check` clean (only pre-existing warnings), full build via `scripts/build.ps1`.

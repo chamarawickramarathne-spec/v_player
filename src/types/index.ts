@@ -47,7 +47,6 @@ export interface AppSettings {
   volume: number;
   auto_fit_window: boolean;
   show_always_on_top: boolean;
-  language: string;
 }
 
 export interface MpvConfig {
