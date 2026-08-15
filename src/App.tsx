@@ -18,6 +18,7 @@ export default function App() {
   const player = useMpv();
   const { settings, settingsOpen, setSettingsOpen } = useSettingsStore();
   const checkForUpdates = useUpdaterStore((s) => s.checkForUpdates);
+  const loadAppVersion = useUpdaterStore((s) => s.loadAppVersion);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [showPlaylist, setShowPlaylist] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("general");
@@ -26,8 +27,9 @@ export default function App() {
 
   // Silent update check on startup
   useEffect(() => {
+    loadAppVersion();
     checkForUpdates();
-  }, [checkForUpdates]);
+  }, [checkForUpdates, loadAppVersion]);
 
   // Apply theme & accent
   useEffect(() => {
@@ -222,6 +224,14 @@ export default function App() {
             >
               V Player
             </span>
+
+            {/* Version + update */}
+            <UpdateBadge
+              onOpenUpdates={() => {
+                setSettingsTab("about");
+                setSettingsOpen(true);
+              }}
+            />
           </div>
 
           {/* Right: Actions */}
@@ -291,14 +301,6 @@ export default function App() {
 
             {/* Subtitle selector */}
             <SubtitleSelector tracks={player.trackList} onSetTrack={(type, idx) => {}} />
-
-            {/* Update badge */}
-            <UpdateBadge
-              onClick={() => {
-                setSettingsTab("about");
-                setSettingsOpen(true);
-              }}
-            />
 
             {/* Settings */}
             <button

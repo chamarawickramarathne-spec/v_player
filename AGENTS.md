@@ -6,9 +6,17 @@
 V Player is a modern media player for Windows (Tauri v2 + React 19 + TypeScript + Vite) using mpv/libmpv as the media engine. An Android port lives in `v-player-android/`.
 
 ## Current Version
-- **v1.0.0** - last updated: 2026-08-15 (Build 14)
+- **v1.0.1** - last updated: 2026-08-15 (Build 15)
 
 ## Mod Log
+
+### MOD 15 (Build 15) - 2026-08-15 - Title Bar Version + Update Button
+- Version number now shown next to the "V Player" title in the title bar (`v{appVersion}`).
+- Update button placed beside the version number (moved from the right side).
+- `UpdateBadge.tsx` repurposed: shows version pill + Update button. Click runs a manual check when up to date; opens Settings -> About when an update is available.
+- Removed the right-side update badge (single indicator next to title).
+- `App.tsx` startup now calls `loadAppVersion()` so the version displays immediately.
+- Version bumped to 1.0.1 (`package.json`, `Cargo.toml`, `Cargo.lock`, `tauri.conf.json`).
 
 ### MOD 14 (Build 14) - 2026-08-15 - Update Feature (GIT/GitHub Releases)
 - Added GIT-based update feature (desktop only) using GitHub Releases API.

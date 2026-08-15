@@ -2,7 +2,7 @@
 
 > This file is the memory for the V Player app build. Read this before making any changes.
 
-## v1.0.0 - Last Updated: 2026-08-15 (Build 14)
+## v1.0.1 - Last Updated: 2026-08-15 (Build 15)
 
 ---
 
@@ -212,9 +212,9 @@ m3u, m3u8, pls, cue, xspf, asx
 
 ## Build Outputs
 - `src-tauri/target/release/v-player.exe` - Standalone exe
-- `src-tauri/target/release/bundle/nsis/V Player_1.0.0_x64-setup.exe` - NSIS installer (versioned)
+- `src-tauri/target/release/bundle/nsis/V Player_1.0.1_x64-setup.exe` - NSIS installer (versioned)
 - `release/VPlayer-Setup-x64.exe` - **Fixed-name installer** (Build 14+): uploaded to GitHub releases, used by the in-app updater
-- `src-tauri/target/release/bundle/msi/V Player_1.0.0_x64_en-US.msi` - MSI installer
+- `src-tauri/target/release/bundle/msi/V Player_1.0.1_x64_en-US.msi` - MSI installer
 
 ---
 
@@ -453,3 +453,15 @@ Creates:
 
 #### Release workflow (documented)
 - Build: `.\scripts\build.ps1` → bump versions in `package.json`, `Cargo.toml`, `tauri.conf.json`; build; commit; push; create GitHub release `vX.Y.Z`; attach `release/VPlayer-Setup-x64.exe`.
+
+### Build 15 - Title Bar Version + Update Button (2026-08-15)
+
+#### UI Change: Version & update controls moved next to the title
+104. Version number now displayed next to the "V Player" title in the title bar as a small pill (`v1.0.1`), read live via `loadAppVersion()` from the updater store.
+105. `UpdateBadge.tsx` repurposed into a version + update button group: shows `v{appVersion}` and an Update button. Button behavior:
+    - Update available → accent-highlighted "Update available" → opens Settings on the About tab.
+    - Checking → "Checking…".
+    - Up to date → neutral "Update" → runs a manual `checkForUpdates()`.
+106. Removed the old right-side update badge (single update indicator next to the title now).
+107. `App.tsx` startup effect now calls `loadAppVersion()` so the version shows immediately.
+108. Version bumped to **1.0.1** in `package.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, `src-tauri/tauri.conf.json`.

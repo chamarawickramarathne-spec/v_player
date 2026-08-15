@@ -2,7 +2,7 @@ param(
     [switch]$SkipFrontend
 )
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 
 Set-Location -LiteralPath (Split-Path $PSScriptRoot -Parent)
 
@@ -23,7 +23,7 @@ $releaseDir = "release"
 
 New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
 
-$installer = Get-ChildItem -LiteralPath $nsisDir -Filter "V Player_*_x64-setup.exe" | Select-Object -First 1
+$installer = Get-ChildItem -LiteralPath $nsisDir -Filter "V Player_*_x64-setup.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 if (-not $installer) { throw "NSIS installer not found in $nsisDir" }
 
 $dest = Join-Path $releaseDir "VPlayer-Setup-x64.exe"
