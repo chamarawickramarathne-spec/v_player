@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { AppSettings } from "../../types";
+import { useSettingsStore } from "../../stores/settingsStore";
 import UpdatePanel from "./UpdatePanel";
 
 export type SettingsTab = "general" | "playback" | "about";
@@ -13,15 +14,8 @@ interface SettingsPanelProps {
 }
 
 export default function SettingsPanel({ isOpen, onClose, activeTab, onTabChange }: SettingsPanelProps) {
-  const [settings, setSettings] = useState<AppSettings>({
-    theme: "dark",
-    accent_color: "#6366f1",
-    hwdec: "auto-safe",
-    volume: 1.0,
-    auto_fit_window: true,
-    show_always_on_top: false,
-    language: "en",
-  });
+  const settings = useSettingsStore((s) => s.settings);
+  const setSettings = useSettingsStore((s) => s.setSettings);
 
   useEffect(() => {
     if (isOpen) loadSettings();

@@ -2,7 +2,7 @@
 
 > This file is the memory for the V Player app build. Read this before making any changes.
 
-## v1.0.1 - Last Updated: 2026-08-15 (Build 15)
+## v1.0.2 - Last Updated: 2026-08-15 (Build 16)
 
 ---
 
@@ -465,3 +465,12 @@ Creates:
 106. Removed the old right-side update badge (single update indicator next to the title now).
 107. `App.tsx` startup effect now calls `loadAppVersion()` so the version shows immediately.
 108. Version bumped to **1.0.1** in `package.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, `src-tauri/tauri.conf.json`.
+
+### Build 16 - Fix: Theme/Accent Color Not Applying (2026-08-15)
+
+#### Bug Fix: Settings changes never applied
+109. **Root cause**: `SettingsPanel.tsx` kept settings in local `useState` and only persisted them to the backend via `invoke("update_settings")`. It never wrote to the Zustand `useSettingsStore`, which `App.tsx` reads to apply `data-theme` and `--accent` CSS variables (`App.tsx` theme effect). So changing accent color or theme had no visual effect. Additionally, the store was never hydrated from `get_settings` at startup, so saved settings never applied on launch (and `useMpv` read default `hwdec`/`volume`).
+110. `settingsStore.ts` - added `loadSettings()` action: invokes `get_settings` and writes the result into the store.
+111. `SettingsPanel.tsx` - removed the local `useState<AppSettings>`; settings are now read and written directly through `useSettingsStore` (single source of truth). `loadSettings` and `saveSettings` both go through the store, so App re-applies theme/accent live.
+112. `App.tsx` - startup effect now calls `loadSettings()` so persisted theme/accent/volume/hwdec apply immediately on launch.
+113. Version bumped to **1.0.2**.

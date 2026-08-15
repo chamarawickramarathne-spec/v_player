@@ -16,7 +16,7 @@ type SettingsTab = "general" | "playback" | "about";
 
 export default function App() {
   const player = useMpv();
-  const { settings, settingsOpen, setSettingsOpen } = useSettingsStore();
+  const { settings, settingsOpen, setSettingsOpen, loadSettings } = useSettingsStore();
   const checkForUpdates = useUpdaterStore((s) => s.checkForUpdates);
   const loadAppVersion = useUpdaterStore((s) => s.loadAppVersion);
   const [controlsVisible, setControlsVisible] = useState(true);
@@ -25,11 +25,12 @@ export default function App() {
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFullscreen = usePlayerStore((s) => s.isFullscreen);
 
-  // Silent update check on startup
+  // Load persisted settings + silent update check on startup
   useEffect(() => {
+    loadSettings();
     loadAppVersion();
     checkForUpdates();
-  }, [checkForUpdates, loadAppVersion]);
+  }, [loadSettings, checkForUpdates, loadAppVersion]);
 
   // Apply theme & accent
   useEffect(() => {

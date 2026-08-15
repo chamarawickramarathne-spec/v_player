@@ -6,9 +6,16 @@
 V Player is a modern media player for Windows (Tauri v2 + React 19 + TypeScript + Vite) using mpv/libmpv as the media engine. An Android port lives in `v-player-android/`.
 
 ## Current Version
-- **v1.0.1** - last updated: 2026-08-15 (Build 15)
+- **v1.0.2** - last updated: 2026-08-15 (Build 16)
 
 ## Mod Log
+
+### MOD 16 (Build 16) - 2026-08-15 - Fix: Theme/Accent Color Not Applying
+- **Root cause**: `SettingsPanel.tsx` kept settings in local `useState` and only persisted to the backend (`update_settings`); it never wrote to the Zustand `useSettingsStore`. `App.tsx` applies `--accent`/`data-theme` CSS from the store, so color/theme changes never applied. The store was also never loaded from `get_settings` at startup, so saved settings never applied on launch.
+- `settingsStore.ts`: added `loadSettings()` action (invokes `get_settings`, writes store).
+- `SettingsPanel.tsx`: removed local `useState`; settings now read/written through `useSettingsStore` (single source of truth).
+- `App.tsx`: startup now calls `loadSettings()` so persisted theme/accent/volume/hwdec apply immediately.
+- Version bumped to 1.0.2.
 
 ### MOD 15 (Build 15) - 2026-08-15 - Title Bar Version + Update Button
 - Version number now shown next to the "V Player" title in the title bar (`v{appVersion}`).
