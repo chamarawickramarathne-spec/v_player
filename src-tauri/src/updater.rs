@@ -45,20 +45,16 @@ pub fn get_app_version(app: AppHandle) -> Result<String, String> {
     Ok(app.package_info().version.to_string())
 }
 
-#[tauri::command]
-pub fn check_for_update(app: AppHandle) -> Result<UpdateInfo, String> {
-    let current = app.package_info().version.to_string();
-
+fn do_check_for_update(current: &str) -> Result<UpdateInfo, String> {
     let resp = ureq::get(&releases_latest_url())
         .set("User-Agent", &format!("VPlayer/{}", current))
         .set("Accept", "application/vnd.github+json")
         .call()
         .map_err(|e| format!("Failed to reach GitHub: {}", e))?;
 
-    let json: serde_json::Value = serde_json::from_str(
-        &resp.into_string().map_err(|e| e.to_string())?,
-    )
-    .map_err(|e| e.to_string())?;
+    let json: serde_json::Value =
+        serde_json::from_str(&resp.into_string().map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
 
     if let Some(message) = json.get("message").and_then(|m| m.as_str()) {
         return Err(format!("GitHub API error: {}", message));
@@ -92,13 +88,13 @@ pub fn check_for_update(app: AppHandle) -> Result<UpdateInfo, String> {
     let has_update = if latest.is_empty() {
         false
     } else {
-        let cur = semver::Version::parse(&current).unwrap_or(semver::Version::new(0, 0, 0));
+        let cur = semver::Version::parse(current).unwrap_or(semver::Version::new(0, 0, 0));
         let lat = semver::Version::parse(&latest).unwrap_or(semver::Version::new(0, 0, 0));
         lat > cur
     };
 
     Ok(UpdateInfo {
-        current_version: current,
+        current_version: current.to_string(),
         latest_version: latest,
         has_update,
         download_url: if download_url.is_empty() {
@@ -121,7 +117,15 @@ pub fn check_for_update(app: AppHandle) -> Result<UpdateInfo, String> {
 }
 
 #[tauri::command]
-pub fn download_update(
+pub async fn check_for_update(app: AppHandle) -> Result<UpdateInfo, String> {
+    let current = app.package_info().version.to_string();
+    tauri::async_runtime::spawn_blocking(move || do_check_for_update(&current))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn download_update(
     app: AppHandle,
     url: String,
     channel: tauri::ipc::Channel<UpdateProgress>,
@@ -202,10 +206,41 @@ pub fn download_update(
 }
 
 #[tauri::command]
+pub fn get_downloaded_installer(app: AppHandle) -> Result<Option<String>, String> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("updates");
+    let path = dir.join(INSTALLER_ASSET);
+    if path.exists() {
+        Ok(Some(path.to_string_lossy().to_string()))
+    } else {
+        Ok(None)
+    }
+}
+
+#[tauri::command]
 pub fn install_update(app: AppHandle, path: String) -> Result<(), String> {
-    std::process::Command::new(&path)
+    let p = std::path::PathBuf::from(&path);
+    if !p.exists() {
+        return Err(format!("Installer not found: {}", path));
+    }
+    let child = std::process::Command::new(&p)
         .spawn()
-        .map_err(|e| format!("Failed to launch installer: {}", e))?;
-    app.exit(0);
+        .map_err(|e| format!("Failed to launch installer: {} ({})", e, path))?;
+    drop(child);
+
+    use tauri_plugin_dialog::DialogExt;
+    app.dialog()
+        .message(
+            "The update installer is launching.\n\n\
+             If Windows shows a security warning, click \"More info\" then \"Run anyway\".\n\n\
+             V Player will close now and restart once installation finishes.",
+        )
+        .title("V Player Update")
+        .show(move |_| {
+            app.exit(0);
+        });
     Ok(())
 }

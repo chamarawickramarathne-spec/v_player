@@ -18,6 +18,7 @@ export default function App() {
   const player = useMpv();
   const { settings, settingsOpen, setSettingsOpen, loadSettings } = useSettingsStore();
   const checkForUpdates = useUpdaterStore((s) => s.checkForUpdates);
+  const detectDownloadedUpdate = useUpdaterStore((s) => s.detectDownloadedUpdate);
   const loadAppVersion = useUpdaterStore((s) => s.loadAppVersion);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [showPlaylist, setShowPlaylist] = useState(false);
@@ -29,8 +30,9 @@ export default function App() {
   useEffect(() => {
     loadSettings();
     loadAppVersion();
+    detectDownloadedUpdate();
     checkForUpdates();
-  }, [loadSettings, checkForUpdates, loadAppVersion]);
+  }, [loadSettings, checkForUpdates, detectDownloadedUpdate, loadAppVersion]);
 
   // Apply theme & accent
   useEffect(() => {

@@ -2,7 +2,7 @@
 
 > This file is the memory for the V Player app build. Read this before making any changes.
 
-## v1.0.4 - Last Updated: 2026-08-15 (Build 18)
+## v1.0.5 - Last Updated: 2026-08-15 (Build 19)
 
 ---
 
@@ -502,6 +502,19 @@ Creates:
 125. No migration needed - serde ignores the stale `language` key in persisted `~/.vplayer/settings.json` and it is dropped on the next save.
 126. Left untouched: `tauri.conf.json` `languages` (NSIS installer UI language) and `v-player-android/**` `language` fields (audio/subtitle track metadata).
 127. Version bumped to **1.0.4** in `package.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, `src-tauri/tauri.conf.json`.
+
+#### Verified
+- `npx tsc --noEmit` clean, `cargo check` clean (only pre-existing warnings), full build via `scripts/build.ps1`.
+
+### Build 19 - Truly One-Click Update: Auto-Install + Guided Wizard (2026-08-15)
+
+#### Bug Fix: "click update button not updating" (2nd report)
+128. **Root cause**: Check + download worked end-to-end (verified live: startup check consumed 1 GitHub API request; clicking "Update" on the installed v1.0.3 downloaded the full 32 MB installer into `%APPDATA%\com.vplayer.desktop\updates\`). The failure was downstream: after download the app waited for a SECOND click ("Install & Restart"), then launched a bare NSIS wizard and exited. If that second step was missed or the unsigned installer was blocked by SmartScreen, the app simply closed - looking exactly like "Update did nothing."
+129. `updaterStore.ts` - the download "complete" handler now AUTO-INSTALLS after a 2s delay (toast: "downloaded - launching installer..."). Added `detectDownloadedUpdate()` which calls the new `get_downloaded_installer` backend command; an installer left over from a previous session is detected on startup and offered as "Install & Restart". Install/download failures now also set the error feedback toast.
+130. `updater.rs` - `check_for_update` and `download_update` are now `async` + `spawn_blocking` so the GitHub network call no longer freezes the main thread (previously a blocking synchronous command could swallow the user's click during the check). Added `get_downloaded_installer` command. `install_update` verifies the file exists, launches the installer, then shows a guided `tauri-plugin-dialog` message ("If Windows shows a security warning, click More info -> Run anyway") before exiting the app.
+131. `lib.rs` - registered the new `get_downloaded_installer` command.
+132. `App.tsx` - startup effect now also calls `detectDownloadedUpdate()`.
+133. Version bumped to **1.0.5** in `package.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, `src-tauri/tauri.conf.json`.
 
 #### Verified
 - `npx tsc --noEmit` clean, `cargo check` clean (only pre-existing warnings), full build via `scripts/build.ps1`.

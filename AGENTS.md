@@ -6,9 +6,16 @@
 V Player is a modern media player for Windows (Tauri v2 + React 19 + TypeScript + Vite) using mpv/libmpv as the media engine. An Android port lives in `v-player-android/`.
 
 ## Current Version
-- **v1.0.4** - last updated: 2026-08-15 (Build 18)
+- **v1.0.5** - last updated: 2026-08-15 (Build 19)
 
 ## Mod Log
+
+### MOD 19 (Build 19) - 2026-08-15 - Truly One-Click Update (auto-install + guided wizard)
+- **Root cause**: Update mechanics worked (verified: check hits GitHub, full installer downloads to `%APPDATA%\com.vplayer.desktop\updates\`) but the flow required a second "Install & Restart" click, then dropped the user into a bare NSIS wizard + exited the app. If that step was missed (or SmartScreen blocked the unsigned installer), it looked like "Update did nothing."
+- `updaterStore.ts`: after download completes, the store now AUTO-INSTALLS (2s delay with "launching installer…" toast) — one click end-to-end. Added `detectDownloadedUpdate()` (checks `get_downloaded_installer`) so an already-downloaded installer from a previous session is detected on startup and shown as "Install & Restart".
+- `updater.rs`: `check_for_update`/`download_update` are now `async` + `spawn_blocking` (no more main-thread freeze during network calls). New command `get_downloaded_installer` returns the downloaded setup path if present. `install_update` verifies the file exists, launches the installer, then shows a guided dialog ("If Windows shows a security warning, click More info → Run anyway") before exiting.
+- `App.tsx` startup now also calls `detectDownloadedUpdate()`.
+- Version bumped to 1.0.5.
 
 ### MOD 18 (Build 18) - 2026-08-15 - Remove Non-Functional Language Setting
 - **Root cause**: The Language dropdown in Settings > General was dead UI - nothing reads `settings.language` (entire UI is hardcoded English).
@@ -66,7 +73,7 @@ V Player is a modern media player for Windows (Tauri v2 + React 19 + TypeScript 
 2. Build: `.\scripts\build.ps1` (runs tsc + vite + tauri build, renames installer to `release/VPlayer-Setup-x64.exe`).
 3. Commit and push to git.
 4. Create GitHub release tagged `vX.Y.Z` and attach `release/VPlayer-Setup-x64.exe` (name must stay fixed).
-5. App checks `releases/latest` on startup; title-bar Update button is one-click (download -> Install & Restart); up-to-date clicks show a transient toast.
+5. App checks `releases/latest` on startup; title-bar Update button is one-click (download → auto-install → guided wizard); up-to-date clicks show a transient toast.
 
 ## Build Commands
 - Typecheck: `npx tsc --noEmit`

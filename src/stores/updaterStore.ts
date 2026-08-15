@@ -23,6 +23,7 @@ interface UpdaterState {
   channel: Channel<UpdateProgress> | null;
   loadAppVersion: () => Promise<void>;
   checkForUpdates: () => Promise<void>;
+  detectDownloadedUpdate: () => Promise<void>;
   downloadUpdate: () => Promise<void>;
   installUpdate: () => Promise<void>;
   oneClickUpdate: () => Promise<void>;
@@ -83,6 +84,21 @@ export const useUpdaterStore = create<UpdaterState>((set, get) => ({
     }
   },
 
+  detectDownloadedUpdate: async () => {
+    try {
+      const p = (await invoke("get_downloaded_installer")) as string | null;
+      if (p) {
+        set({
+          downloadStage: "complete",
+          downloadedPath: p,
+          feedback: { type: "downloaded", message: "Update ready — click Update to install" },
+        });
+      }
+    } catch (err) {
+      console.error("Failed to detect downloaded update:", err);
+    }
+  },
+
   downloadUpdate: async () => {
     const info = get().updateInfo;
     if (!info?.download_url || get().downloading) return;
@@ -117,15 +133,22 @@ export const useUpdaterStore = create<UpdaterState>((set, get) => ({
         set({
           downloading: false,
           channel: null,
-          feedback: { type: "downloaded", message: `v${info.latest_version} downloaded — install now` },
+          feedback: { type: "downloaded", message: `v${info.latest_version} downloaded — launching installer…` },
         });
+        setTimeout(() => {
+          const s = get();
+          if (s.downloadStage === "complete" && s.downloadedPath) {
+            s.installUpdate();
+          }
+        }, 2000);
       }
     };
     set({ channel });
     try {
       await invoke("download_update", { url: info.download_url, channel });
     } catch (err) {
-      set({ installError: String(err), downloading: false, downloadStage: "error", channel: null });
+      const m = String(err);
+      set({ installError: m, downloading: false, downloadStage: "error", channel: null, feedback: { type: "error", message: "Download failed" } });
     }
   },
 
@@ -136,7 +159,8 @@ export const useUpdaterStore = create<UpdaterState>((set, get) => ({
     try {
       await invoke("install_update", { path });
     } catch (err) {
-      set({ installError: String(err) });
+      const m = String(err);
+      set({ installError: m, feedback: { type: "error", message: "Install failed" } });
     }
   },
 

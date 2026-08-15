@@ -101,6 +101,7 @@ pub fn run() {
             updater::get_app_version,
             updater::check_for_update,
             updater::download_update,
+            updater::get_downloaded_installer,
             updater::install_update,
         ])
         .setup(|app| {
