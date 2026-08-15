@@ -16,4 +16,12 @@ Make the updater immune to GitHub API rate limits (Atom-feed fallback) and finis
 ## Plan - Build 24 (v1.0.10, verification release) - DONE
 - [x] Version bump 1.0.9 -> 1.0.10, build, commit c74e217, released v1.0.10.
 - [x] Atom feed verified showing first entry <title>v1.0.10</title>.
-- PENDING (user): install v1.0.9 manually, open app -> badge "Download v1.0.10" -> one-click update test.
+- [x] USER RESULT: one-click flow WORKED (v1.0.7 -> v1.0.10). But then "Install & Restart" kept showing forever even after the update installed -> caused by stale leftover installer (see Build 25).
+
+## Plan - Build 25 (v1.0.11, stale-installer self-heal) - DONE
+- [x] Root cause: `get_downloaded_installer` was not version-aware; any leftover installer in `%APPDATA%\com.vplayer.desktop\updates\` triggered "Install & Restart" on every launch.
+- [x] `updater.rs`: `download_update` writes `update.json` (version) beside installer; `get_downloaded_installer` returns installer only if NEWER than running app, else self-deletes (installer + update.json); metadata-less leftovers also deleted (self-heal).
+- [x] `updaterStore.ts`: passes `version: info.latest_version` on download.
+- [x] Manual cleanup of the existing stale leftover done (updates folder deleted).
+- [x] Version 1.0.11, docs, tsc + cargo check clean, built.
+- PENDING: release v1.0.11; user on v1.0.10 sees "Download v1.0.11" -> one-click -> v1.0.11 launches with a clean updates folder and normal badge (no "Install & Restart").

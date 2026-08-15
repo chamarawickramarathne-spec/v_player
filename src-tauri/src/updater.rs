@@ -200,6 +200,7 @@ pub async fn check_for_update(app: AppHandle) -> Result<UpdateInfo, String> {
 pub async fn download_update(
     app: AppHandle,
     url: String,
+    version: String,
     channel: tauri::ipc::Channel<UpdateProgress>,
 ) -> Result<(), String> {
     let dir = app
@@ -254,6 +255,13 @@ pub async fn download_update(
             drop(file);
             std::fs::rename(&tmp_path, &final_path).map_err(|e| e.to_string())?;
 
+            // Record which version this installer is for so a stale leftover can be
+            // detected (and self-cleaned) after the update has been installed.
+            let _ = std::fs::write(
+                dir.join("update.json"),
+                serde_json::json!({ "version": version }).to_string(),
+            );
+
             let _ = channel.send(UpdateProgress {
                 stage: "complete".to_string(),
                 received,
@@ -285,11 +293,39 @@ pub fn get_downloaded_installer(app: AppHandle) -> Result<Option<String>, String
         .map_err(|e| e.to_string())?
         .join("updates");
     let path = dir.join(INSTALLER_ASSET);
-    if path.exists() {
-        Ok(Some(path.to_string_lossy().to_string()))
-    } else {
-        Ok(None)
+    if !path.exists() {
+        return Ok(None);
     }
+
+    // Only offer the leftover installer if it is newer than the running app.
+    // Otherwise it is a stale leftover (already installed) -> self-clean it so the
+    // "Install & Restart" button does not show forever.
+    let meta_path = dir.join("update.json");
+    let stored_version = std::fs::read_to_string(&meta_path)
+        .ok()
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+        .and_then(|v| v["version"].as_str().map(str::to_string));
+
+    let stale = match &stored_version {
+        Some(stored) => {
+            let cur =
+                semver::Version::parse(&app.package_info().version.to_string())
+                    .unwrap_or(semver::Version::new(0, 0, 0));
+            let got = semver::Version::parse(stored).unwrap_or(semver::Version::new(0, 0, 0));
+            got <= cur
+        }
+        // Missing or unreadable metadata: leftover from a pre-fix build (or unknown) ->
+        // it cannot be verified as pending, so treat it as stale and self-heal.
+        None => true,
+    };
+
+    if stale {
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(&meta_path);
+        return Ok(None);
+    }
+
+    Ok(Some(path.to_string_lossy().to_string()))
 }
 
 #[tauri::command]

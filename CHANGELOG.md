@@ -2,6 +2,17 @@
 
 > This file is the memory for the V Player app build. Read this before making any changes.
 
+## v1.0.11 - Last Updated: 2026-08-15 (Build 25)
+
+- **Build 25**: Fixed forever "Install & Restart" caused by a stale leftover installer. After an update is installed, the downloaded `VPlayer-Setup-x64.exe` stayed in `%APPDATA%\com.vplayer.desktop\updates\`, so `detectDownloadedUpdate()` kept offering "Install & Restart" on every launch even though the running version was already the newest.
+- Root cause: `get_downloaded_installer` returned any installer file present; it was not version-aware. With an installer file always left behind after the one-click flow completed (user reached v1.0.10), the button showed forever.
+- Fix: `download_update` now receives the target `version` and writes `updates/update.json` (e.g. `{"version":"1.0.11"}`) beside the installer. `get_downloaded_installer` only returns the installer when the recorded version is NEWER than the running app (semver); otherwise it self-cleans (deletes installer + `update.json`) and returns `None`. Leftovers without readable metadata (from pre-fix builds) are also deleted as stale — self-heal.
+- `updaterStore.ts`: `downloadUpdate` passes `version: info.latest_version` to the backend.
+- Net behavior: a genuinely pending update still shows "Install & Restart"; once the newer version is running the leftover cleans itself on next launch.
+- Version bumped 1.0.10 -> 1.0.11 in `package.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, `src-tauri/tauri.conf.json`.
+
+---
+
 ## v1.0.10 - Last Updated: 2026-08-15 (Build 24)
 
 ---

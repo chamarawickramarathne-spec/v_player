@@ -146,7 +146,11 @@ export const useUpdaterStore = create<UpdaterState>((set, get) => ({
     };
     set({ channel });
     try {
-      await invoke("download_update", { url: info.download_url, channel });
+      await invoke("download_update", {
+        url: info.download_url,
+        version: info.latest_version,
+        channel,
+      });
     } catch (err) {
       const m = String(err);
       set({ installError: m, downloading: false, downloadStage: "error", channel: null, feedback: { type: "error", message: "Download failed" } });
