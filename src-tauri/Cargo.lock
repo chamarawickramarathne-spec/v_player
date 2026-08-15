@@ -3951,7 +3951,7 @@ dependencies = [
 
 [[package]]
 name = "v-player"
-version = "1.0.7"
+version = "1.0.8"
 dependencies = [
  "chrono",
  "dirs-next",

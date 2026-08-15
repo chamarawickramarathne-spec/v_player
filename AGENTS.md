@@ -6,9 +6,12 @@
 V Player is a modern media player for Windows (Tauri v2 + React 19 + TypeScript + Vite) using mpv/libmpv as the media engine. An Android port lives in `v-player-android/`.
 
 ## Current Version
-- **v1.0.7** - last updated: 2026-08-15 (Build 21)
+- **v1.0.8** - last updated: 2026-08-15 (Build 22)
 
 ## Mod Log
+
+### MOD 22 (Build 22) - 2026-08-15 - Verification release for one-click updater
+- No functional code change. Version bumped 1.0.7 -> 1.0.8 so the fixed v1.0.7 app can verify the one-click update flow live: badge shows "Download v1.0.8" -> click -> download -> auto-install -> guided wizard -> v1.0.8 -> "Up to date · v1.0.8" toast. Confirms MOD 21 (serde fix) works end-to-end.
 
 ### MOD 21 (Build 21) - 2026-08-15 - FIX: Update Detection Never Worked (serde camelCase mismatch)
 - **Root cause**: `UpdateInfo`/`UpdateProgress` in `updater.rs` were serialized with `#[serde(rename_all = "camelCase")]`, so Tauri IPC delivered `hasUpdate`, `latestVersion`, `downloadUrl`, `currentVersion`, `sizeBytes`, `releaseNotes`. The frontend (types, updaterStore, UpdateBadge, UpdatePanel) reads snake_case (`has_update`, `latest_version`, `download_url`, ...). So `has_update` was ALWAYS undefined -> the app always reported "Up to date · vX.Y.Z", never showed "Download vX", and `download_url` undefined meant badge downloads could never start. Progress events worked (single-word fields), masking the bug. Present since Build 14 - this was the original "click update button not updating" bug.

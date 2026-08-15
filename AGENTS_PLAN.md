@@ -18,5 +18,5 @@ Fix the actual updater bug (update detection never worked) and prove the one-cli
 - User manually installs `release\VPlayer-Setup-x64.exe` (v1.0.7) - installed v1.0.5 cannot self-update.
 
 ## Plan - Build 22 (v1.0.8, verification release)
-- Version bump 1.0.7 -> 1.0.8 (no code change), build, commit, release.
+- Version bump 1.0.7 -> 1.0.8 (no code change), build, commit, release. IN PROGRESS.
 - Verify in v1.0.7: badge shows "Download v1.0.8" -> one click -> download -> auto-install -> guided wizard -> v1.0.8 -> "Up to date - v1.0.8" toast.

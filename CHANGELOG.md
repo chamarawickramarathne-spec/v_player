@@ -2,7 +2,7 @@
 
 > This file is the memory for the V Player app build. Read this before making any changes.
 
-## v1.0.7 - Last Updated: 2026-08-15 (Build 21)
+## v1.0.8 - Last Updated: 2026-08-15 (Build 22)
 
 ---
 
@@ -542,3 +542,9 @@ Creates:
 
 #### Verified
 - `npx tsc --noEmit` clean, `cargo check` clean (only pre-existing warnings), full build via `scripts/build.ps1`.
+
+### Build 22 - Release-only bump: verify the fixed updater (2026-08-15)
+
+#### Purpose
+142. No functional code change. Version bumped **1.0.7 -> 1.0.8** in `package.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, `src-tauri/tauri.conf.json` so the fixed v1.0.7 app (which contains the MOD 21 serde fix) can verify the one-click update flow live: badge shows "Download v1.0.8" -> click -> download -> auto-launch installer -> guided wizard -> install v1.0.8 -> "Up to date - v1.0.8" toast. Proves update detection + one-click update work end-to-end.
+143. Success criteria: after v1.0.8 is installed, title bar shows v1.0.8; clicking Update again shows the "Up to date - v1.0.8" toast.
