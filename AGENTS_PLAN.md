@@ -18,5 +18,7 @@ Fix the actual updater bug (update detection never worked) and prove the one-cli
 - User manually installs `release\VPlayer-Setup-x64.exe` (v1.0.7) - installed v1.0.5 cannot self-update.
 
 ## Plan - Build 22 (v1.0.8, verification release)
-- Version bump 1.0.7 -> 1.0.8 (no code change), build, commit, release. IN PROGRESS.
-- Verify in v1.0.7: badge shows "Download v1.0.8" -> one click -> download -> auto-install -> guided wizard -> v1.0.8 -> "Up to date - v1.0.8" toast.
+- Version bump 1.0.7 -> 1.0.8, build, commit, release. DONE (commit 17b7abb, release v1.0.8).
+- `releases/latest` verified returning v1.0.8 with VPlayer-Setup-x64.exe.
+- PENDING (user): install v1.0.7 manually, open app -> badge "Download v1.0.8" -> one-click update test.
+- Note: unauthenticated GitHub API rate limit was temporarily exhausted during diagnostics (60/hr). If the in-app check fails during the window, v1.0.7 now correctly shows an error toast (not a false "Up to date").
