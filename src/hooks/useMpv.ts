@@ -205,6 +205,7 @@ export function useMpv() {
         vo: "gpu",
         hwdec: settings.hwdec,
         "keep-open": "yes",
+        "keep-open-pause": "no",
         volume: Math.round(settings.volume * 100),
         cache: "yes",
         "cache-secs": "30",
@@ -338,6 +339,7 @@ export function useMpv() {
       await clearAbLoopMpv();
 
       await command("loadfile", [filePath, "replace"]);
+      await setProperty("pause", false);
       const mediaType = getMediaType(filePath);
       const store = usePlayerStore.getState();
       store.setFilePath(filePath);

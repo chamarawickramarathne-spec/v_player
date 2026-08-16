@@ -6,9 +6,17 @@
 V Player is a modern media player for Windows (Tauri v2 + React 19 + TypeScript + Vite) using mpv/libmpv as the media engine. An Android port lives in `v-player-android/`.
 
 ## Current Version
-- **v1.0.17** - last updated: 2026-08-16 (Build 31)
+- **v1.0.18** - last updated: 2026-08-16 (Build 32)
 
 ## Mod Log
+
+### MOD 32 (Build 32) - 2026-08-16 - Fix next/prev + auto-advance: unstuck mpv pause after EOF
+- **Root cause**: `initialOptions` used `"keep-open": "yes"` and mpv's `--keep-open-pause` defaults to **yes**. At end-of-file mpv's `handle_keep_open()` calls `set_pause_state(true)`, which writes the **option** `opts->pause = true` (not just runtime state). On every later `loadfile`, mpv's `reset_playback_state()` → `update_internal_pause_state()` restores pause from that sticky `opts->pause`, so the newly loaded file opens **paused**. `openFile()` only set React store state (`store.setPlaying(true)`) and never sent `pause=no`, so the first file played but every file loaded afterward (auto-advance, Next/Prev buttons, playlist row click, Recent resume, Open) stayed paused and looked "not loading".
+- **Fix A**: in `openFile()`, right after `command("loadfile", [path, "replace"])`, add `await setProperty("pause", false)` — every file is force-unpaused on load.
+- **Fix B (root cause)**: added `"keep-open-pause": "no"` to mpv `initialOptions` so EOF never sticks the pause option (last frame stays shown, no pause).
+- Verified with `npx tsc --noEmit`.
+- File: `src/hooks/useMpv.ts`.
+- Version 1.0.18.
 
 ### MOD 31 (Build 31) - 2026-08-16 - Thumbnails actually show: asset protocol + idle generator + PNG
 - **Root cause 1 (display)**: `tauri.conf.json` had no `assetProtocol`, so `AssetProtocolConfig.enable` defaulted to **false** → the `protocol-asset` cargo feature never compiled → `convertFileSrc` / `asset.localhost` URLs always failed → `<img>` fell back to icons for both video AND image thumbs.
