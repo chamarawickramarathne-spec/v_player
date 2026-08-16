@@ -7,7 +7,8 @@ interface VolumeControlProps {
 }
 
 export default function VolumeControl({ onSetVolume, onToggleMute }: VolumeControlProps) {
-  const { volume, isMuted } = usePlayerStore();
+  const volume = usePlayerStore((s) => s.volume);
+  const isMuted = usePlayerStore((s) => s.isMuted);
   const [showSlider, setShowSlider] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 

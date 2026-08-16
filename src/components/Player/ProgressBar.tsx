@@ -6,7 +6,8 @@ interface ProgressBarProps {
 }
 
 export default function ProgressBar({ onSeek }: ProgressBarProps) {
-  const { currentTime, duration } = usePlayerStore();
+  const currentTime = usePlayerStore((s) => s.currentTime);
+  const duration = usePlayerStore((s) => s.duration);
   const barRef = useRef<HTMLDivElement>(null);
   const [hoverTime, setHoverTime] = useState<number | null>(null);
   const [hoverX, setHoverX] = useState(0);
@@ -159,7 +160,7 @@ export default function ProgressBar({ onSeek }: ProgressBarProps) {
             transform: "translateX(-50%)",
             marginBottom: "8px",
             background: "var(--controls-bg-solid)",
-            backdropFilter: "var(--blur)",
+            backdropFilter: "none",
             color: "var(--text-primary)",
             padding: "5px 10px",
             borderRadius: "8px",

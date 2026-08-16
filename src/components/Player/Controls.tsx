@@ -85,8 +85,13 @@ export default function Controls({
   onSpeedUp,
   onSpeedDown,
 }: ControlsProps) {
-  const { isPlaying, currentTime, duration, speed, filePath, mediaTitle, isFullscreen } =
-    usePlayerStore();
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const currentTime = usePlayerStore((s) => s.currentTime);
+  const duration = usePlayerStore((s) => s.duration);
+  const speed = usePlayerStore((s) => s.speed);
+  const filePath = usePlayerStore((s) => s.filePath);
+  const mediaTitle = usePlayerStore((s) => s.mediaTitle);
+  const isFullscreen = usePlayerStore((s) => s.isFullscreen);
 
   const formatTime = (seconds: number) => {
     if (!seconds || !isFinite(seconds)) return "0:00";

@@ -6,9 +6,19 @@
 V Player is a modern media player for Windows (Tauri v2 + React 19 + TypeScript + Vite) using mpv/libmpv as the media engine. An Android port lives in `v-player-android/`.
 
 ## Current Version
-- **v1.0.11** - last updated: 2026-08-15 (Build 25)
+- **v1.0.12** - last updated: 2026-08-16 (Build 26)
 
 ## Mod Log
+
+### MOD 26 (Build 26) - 2026-08-16 - Fix drag-drop playlist duplicates + memory best-effort
+- **Drag-drop bug**: One drop created many same-name playlist rows. Root cause: `VideoSurface` Tauri `onDragDropEvent` re-registered on every unstable `onFileDrop` change; async setup raced cleanup and leaked listeners; `addToPlaylist` had no path dedup.
+- `VideoSurface.tsx`: mount-once listener (`[]` deps), `onFileDropRef`, cancel-safe async unlisten; Zustand selectors.
+- `App.tsx`: stable `handleDrop`/`handleOpenFile` deps on `addToPlaylist`/`openFile`; open uses returned auto-open path.
+- `useMpv.ts` `addToPlaylist`: filter via `isMediaFile`, dedupe with `normalizePath`, returns `string | null` (first path when playlist was empty).
+- `media.ts`: `isMediaFile`, `normalizePath`, `getExtension`, `MEDIA_EXTENSIONS`.
+- **Memory (best-effort idle + playback)**: mpv `vo=gpu`, demuxer/cache caps (100M/50M, readahead 10s, cache-secs 30); `time-pos` throttled ~10 Hz (immediate when paused); dropped unused `playlist` observe; selectors in useMpv/Controls/VolumeControl/ProgressBar/VideoSurface; system Segoe UI font (no Google Inter); reduced backdrop-filter on chrome.
+- Honest note: WebView2 + full libmpv may still exceed 100MB during playback; caps reduce demuxer bloat and UI churn.
+- Version bumped to 1.0.12.
 
 ### MOD 25 (Build 25) - 2026-08-15 - Self-heal stale downloaded installer (kills forever "Install & Restart")
 - **Root cause**: `get_downloaded_installer` returned ANY leftover installer in `%APPDATA%\com.vplayer.desktop\updates\`, and `detectDownloadedUpdate()` showed "Install & Restart" from it on every launch. After a successful update the downloaded exe stayed on disk, so the button kept showing even though the new version was already installed (reported on v1.0.10).

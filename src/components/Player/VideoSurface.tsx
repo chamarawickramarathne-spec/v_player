@@ -10,41 +10,54 @@ interface VideoSurfaceProps {
 
 export default function VideoSurface({ onFileDrop, onClick, onDoubleClick }: VideoSurfaceProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const onFileDropRef = useRef(onFileDrop);
   const [isDragOver, setIsDragOver] = useState(false);
   const [ripples, setRipples] = useState<{ x: number; y: number; id: number }[]>([]);
-  const { filePath, mediaType, isPlaying, isStopped, currentTime, duration, mediaTitle } = usePlayerStore();
+  const filePath = usePlayerStore((s) => s.filePath);
+  const mediaType = usePlayerStore((s) => s.mediaType);
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const isStopped = usePlayerStore((s) => s.isStopped);
+  const currentTime = usePlayerStore((s) => s.currentTime);
+  const duration = usePlayerStore((s) => s.duration);
+  const mediaTitle = usePlayerStore((s) => s.mediaTitle);
+
+  onFileDropRef.current = onFileDrop;
 
   useEffect(() => {
-    let unlisten: (() => void) | null = null;
+    let cancelled = false;
+    let unlisten: (() => void) | undefined;
 
-    const setupDragDrop = async () => {
+    (async () => {
       try {
         const appWindow = getCurrentWebviewWindow();
-        unlisten = await appWindow.onDragDropEvent((event) => {
+        const fn = await appWindow.onDragDropEvent((event) => {
           if (event.payload.type === "over") {
             setIsDragOver(true);
           } else if (event.payload.type === "drop") {
             setIsDragOver(false);
             const paths = event.payload.paths;
             if (paths && paths.length > 0) {
-              onFileDrop?.(paths);
+              onFileDropRef.current?.(paths);
             }
           } else {
-            // "leave" - drag cancelled
             setIsDragOver(false);
           }
         });
+        if (cancelled) {
+          fn();
+        } else {
+          unlisten = fn;
+        }
       } catch (err) {
         console.error("Failed to set up drag-drop listener:", err);
       }
-    };
-
-    setupDragDrop();
+    })();
 
     return () => {
-      if (unlisten) unlisten();
+      cancelled = true;
+      unlisten?.();
     };
-  }, [onFileDrop]);
+  }, []);
 
   const handleClick = (e: React.MouseEvent) => {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -101,7 +114,7 @@ export default function VideoSurface({ onFileDrop, onClick, onDoubleClick }: Vid
           zIndex: 50,
           transition: "all 0.3s ease",
           pointerEvents: isDragOver ? "auto" : "none",
-          backdropFilter: isDragOver ? "blur(8px)" : "none",
+          backdropFilter: "none",
         }}
       >
         {isDragOver && (
@@ -347,8 +360,8 @@ export default function VideoSurface({ onFileDrop, onClick, onDoubleClick }: Vid
             bottom: "80px",
             left: "50%",
             transform: "translateX(-50%)",
-            background: "rgba(0, 0, 0, 0.6)",
-            backdropFilter: "blur(12px)",
+            background: "rgba(0, 0, 0, 0.75)",
+            backdropFilter: "none",
             padding: "6px 16px",
             borderRadius: "20px",
             fontSize: "13px",

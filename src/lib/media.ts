@@ -15,10 +15,29 @@ const IMAGE_EXTS = [
   "ppm", "pnm", "sfw",
 ];
 
+const MEDIA_EXT_SET = new Set([...VIDEO_EXTS, ...AUDIO_EXTS, ...IMAGE_EXTS]);
+
+export function getExtension(filename: string): string {
+  const base = filename.split(/[\\/]/).pop() || filename;
+  const dot = base.lastIndexOf(".");
+  if (dot <= 0) return "";
+  return base.slice(dot + 1).toLowerCase();
+}
+
+export function isMediaFile(filename: string): boolean {
+  return MEDIA_EXT_SET.has(getExtension(filename));
+}
+
+export function normalizePath(path: string): string {
+  return path.replace(/\//g, "\\").toLowerCase();
+}
+
 export function getMediaType(filename: string): "video" | "audio" | "image" {
-  const ext = filename.split(".").pop()?.toLowerCase() || "";
+  const ext = getExtension(filename);
   if (VIDEO_EXTS.includes(ext)) return "video";
   if (AUDIO_EXTS.includes(ext)) return "audio";
   if (IMAGE_EXTS.includes(ext)) return "image";
-  return "video"; // default to video for unknown types
+  return "video";
 }
+
+export const MEDIA_EXTENSIONS = [...VIDEO_EXTS, ...AUDIO_EXTS, ...IMAGE_EXTS];

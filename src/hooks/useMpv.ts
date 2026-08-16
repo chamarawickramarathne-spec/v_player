@@ -11,8 +11,10 @@ import {
 } from "tauri-plugin-libmpv-api";
 import { usePlayerStore } from "../stores/playerStore";
 import { useSettingsStore } from "../stores/settingsStore";
-import { getMediaType } from "../lib/media";
+import { getMediaType, isMediaFile, normalizePath } from "../lib/media";
 import type { PlaylistItem, PlayerState } from "../types";
+
+const TIME_POS_MIN_MS = 100;
 
 const OBSERVED_PROPERTIES = [
   ["pause", "flag"],
@@ -23,7 +25,6 @@ const OBSERVED_PROPERTIES = [
   ["volume", "double"],
   ["mute", "flag"],
   ["speed", "double"],
-  ["playlist", "node"],
   ["playlist-pos", "int64", "none"],
   ["track-list", "node"],
 ] as const;
@@ -39,10 +40,15 @@ export function useMpv() {
 
     const mpvConfig: MpvConfig = {
       initialOptions: {
-        vo: "gpu-next",
+        vo: "gpu",
         hwdec: settings.hwdec,
         "keep-open": "yes",
         volume: Math.round(settings.volume * 100),
+        cache: "yes",
+        "cache-secs": "30",
+        "demuxer-max-bytes": "104857600",
+        "demuxer-max-back-bytes": "52428800",
+        "demuxer-readahead-secs": "10",
       },
       observedProperties: OBSERVED_PROPERTIES,
     };
@@ -52,7 +58,8 @@ export function useMpv() {
         mpvInitialized.current = true;
         console.log("mpv initialized successfully");
 
-        // Set up property observers
+        let lastTimePosMs = 0;
+
         observeProperties(OBSERVED_PROPERTIES, ({ name, data }) => {
           const store = usePlayerStore.getState();
           switch (name) {
@@ -64,18 +71,22 @@ export function useMpv() {
               }
               break;
             case "time-pos":
-              if (data !== null) store.setCurrentTime(data);
+              if (data !== null) {
+                const now = performance.now();
+                if (!store.isPaused && now - lastTimePosMs < TIME_POS_MIN_MS) break;
+                lastTimePosMs = now;
+                store.setCurrentTime(data as number);
+              }
               break;
             case "duration":
-              if (data !== null) store.setDuration(data);
+              if (data !== null) store.setDuration(data as number);
               break;
             case "media-title":
-              if (data !== null) store.setMediaTitle(data);
+              if (data !== null) store.setMediaTitle(data as string);
               break;
             case "filename":
               if (data !== null) {
-                const mediaType = getMediaType(data);
-                store.setMediaType(mediaType);
+                store.setMediaType(getMediaType(data as string));
               }
               break;
             case "volume":
@@ -87,11 +98,8 @@ export function useMpv() {
             case "speed":
               if (typeof data === "number") store.setSpeed(data);
               break;
-            case "playlist":
-              // mpv reports full playlist as array of {filename, title, ...}
-              break;
             case "playlist-pos":
-              if (data !== null) store.setPlaylistIndex(data);
+              if (data !== null) store.setPlaylistIndex(data as number);
               break;
             case "track-list":
               if (Array.isArray(data)) {
@@ -164,21 +172,33 @@ export function useMpv() {
     }
   }, []);
 
-  const addToPlaylist = useCallback(async (paths: string[]) => {
+  /** Returns first path to auto-open when playlist was empty; otherwise null. */
+  const addToPlaylist = useCallback(async (paths: string[]): Promise<string | null> => {
     const store = usePlayerStore.getState();
-    const newItems: PlaylistItem[] = paths.map((path) => ({
-      path,
-      name: path.split(/[\\/]/).pop() || path,
-      mediaType: getMediaType(path),
-    }));
+    const existing = new Set(store.playlist.map((item) => normalizePath(item.path)));
+    const newItems: PlaylistItem[] = [];
+
+    for (const path of paths) {
+      if (!isMediaFile(path)) continue;
+      const key = normalizePath(path);
+      if (existing.has(key)) continue;
+      existing.add(key);
+      newItems.push({
+        path,
+        name: path.split(/[\\/]/).pop() || path,
+        mediaType: getMediaType(path),
+      });
+    }
+
+    if (newItems.length === 0) return null;
 
     const wasEmpty = store.playlist.length === 0;
     usePlayerStore.setState({
       playlist: [...store.playlist, ...newItems],
-      ...(wasEmpty && newItems.length > 0 ? { playlistIndex: 0 } : {}),
+      ...(wasEmpty ? { playlistIndex: 0 } : {}),
     });
 
-    return wasEmpty;
+    return wasEmpty ? newItems[0].path : null;
   }, []);
 
   const togglePlay = useCallback(async () => {
@@ -350,24 +370,19 @@ export function useMpv() {
     usePlayerStore.getState().setPlaylistIndex(index);
   }, []);
 
-  // Get current state values for the return object
-  const {
-    isPlaying,
-    isPaused,
-    isStopped,
-    isFullscreen,
-    isMuted,
-    volume,
-    speed,
-    duration,
-    currentTime,
-    mediaTitle,
-    filePath,
-    mediaType,
-    trackList,
-    playlist,
-    playlistIndex,
-  } = usePlayerStore();
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const isPaused = usePlayerStore((s) => s.isPaused);
+  const isStopped = usePlayerStore((s) => s.isStopped);
+  const isFullscreen = usePlayerStore((s) => s.isFullscreen);
+  const isMuted = usePlayerStore((s) => s.isMuted);
+  const volume = usePlayerStore((s) => s.volume);
+  const speed = usePlayerStore((s) => s.speed);
+  const mediaTitle = usePlayerStore((s) => s.mediaTitle);
+  const filePath = usePlayerStore((s) => s.filePath);
+  const mediaType = usePlayerStore((s) => s.mediaType);
+  const trackList = usePlayerStore((s) => s.trackList);
+  const playlist = usePlayerStore((s) => s.playlist);
+  const playlistIndex = usePlayerStore((s) => s.playlistIndex);
 
   return {
     isPlaying,
@@ -377,8 +392,6 @@ export function useMpv() {
     isMuted,
     volume,
     speed,
-    duration,
-    currentTime,
     mediaTitle,
     filePath,
     mediaType,

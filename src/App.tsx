@@ -64,6 +64,10 @@ export default function App() {
     resetControlsTimer();
   }, [resetControlsTimer]);
 
+  const addToPlaylist = player.addToPlaylist;
+  const openFile = player.openFile;
+  const setPlaylistIndex = player.setPlaylistIndex;
+
   const handleOpenFile = useCallback(async () => {
     const selected = await open({
       multiple: true,
@@ -85,22 +89,23 @@ export default function App() {
 
     if (selected) {
       const paths = Array.isArray(selected) ? selected : [selected];
-      const wasEmpty = await player.addToPlaylist(paths);
-      await player.openFile(paths[0]);
-      if (wasEmpty) {
-        player.setPlaylistIndex(0);
+      const autoOpen = await addToPlaylist(paths);
+      const toPlay = autoOpen ?? paths[0];
+      if (toPlay) {
+        await openFile(toPlay);
+        if (autoOpen) setPlaylistIndex(0);
       }
     }
-  }, [player]);
+  }, [addToPlaylist, openFile, setPlaylistIndex]);
 
   const handleDrop = useCallback(
     async (paths: string[]) => {
-      const wasEmpty = await player.addToPlaylist(paths);
-      if (wasEmpty) {
-        await player.openFile(paths[0]);
+      const autoOpen = await addToPlaylist(paths);
+      if (autoOpen) {
+        await openFile(autoOpen);
       }
     },
-    [player],
+    [addToPlaylist, openFile],
   );
 
   const handleToggleFullscreen = useCallback(async () => {
@@ -186,10 +191,10 @@ export default function App() {
             justifyContent: "space-between",
             padding: "0 14px",
             background: player.filePath
-              ? (controlsVisible ? "rgba(0, 0, 0, 0.6)" : "transparent")
+              ? (controlsVisible ? "rgba(0, 0, 0, 0.75)" : "transparent")
               : "var(--bg-secondary)",
             borderBottom: player.filePath ? "none" : "1px solid var(--border)",
-            backdropFilter: player.filePath ? "blur(12px)" : "none",
+            backdropFilter: "none",
             opacity: controlsVisible ? 1 : 0,
             transition: "opacity 0.3s, background 0.3s",
             position: "relative",
@@ -384,9 +389,9 @@ export default function App() {
             });
             if (selected) {
               const paths = Array.isArray(selected) ? selected : [selected];
-              const wasEmpty = await player.addToPlaylist(paths);
-              if (wasEmpty) {
-                await player.openFile(paths[0]);
+              const autoOpen = await player.addToPlaylist(paths);
+              if (autoOpen) {
+                await player.openFile(autoOpen);
               }
             }
           }}
