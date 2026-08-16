@@ -6,9 +6,14 @@
 V Player is a modern media player for Windows (Tauri v2 + React 19 + TypeScript + Vite) using mpv/libmpv as the media engine. An Android port lives in `v-player-android/`.
 
 ## Current Version
-- **v1.0.13** - last updated: 2026-08-16 (Build 27)
+- **v1.0.14** - last updated: 2026-08-16 (Build 28)
 
 ## Mod Log
+
+### MOD 28 (Build 28) - 2026-08-16 - Fix window close stuck (onCloseRequested)
+- **Root cause**: MOD 27 `onCloseRequested` awaited `savePlaybackPosition()`/`invoke`. Tauri only calls `destroy()` after the handler resolves; a hung IPC save left the X button doing nothing.
+- Fix: `event.preventDefault()`, race save vs 400ms timeout, always `win.destroy()` in finally path; cancel-safe unlisten registration.
+- Version 1.0.14.
 
 ### MOD 27 (Build 27) - 2026-08-16 - Recent+resume, tracks, loop/shuffle/A-B, Open URL
 - **Recent + resume**: `add_recent_file` preserves position; `openFile(path, startAt?)` seeks; position saved on stop/switch/EOF/10s/close; MediaGrid on empty home with remove/clear; resume if mid-file.

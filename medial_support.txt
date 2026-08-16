@@ -2,28 +2,26 @@
 V Player
 
 2. SHORT DESCRIPTION
-Modern Windows media player with resume, playlists, streams, and mpv-powered playback.
+Modern Windows media player with resume, playlists, streams, and reliable window controls.
 
 3. LONG DESCRIPTION
-V Player is a fast desktop media player for Windows built on Tauri and mpv. Play local video, audio, and images; open network URLs and streams; manage playlists with shuffle and repeat; set A-B loops; switch audio and subtitle tracks; resume where you left off from Recent Media. One-click updates from GitHub keep you current.
+V Player is a fast desktop media player for Windows built on Tauri and mpv. Play local media and network streams, manage playlists with shuffle and repeat, switch tracks, resume from Recent Media, and close cleanly every time. One-click updates keep you current.
 
 4. FACEBOOK POST
-V Player just got smarter.
+V Player — play anything, resume where you left off, open streams, loop and shuffle your playlist.
 
-Resume your movies from Recent Media. Switch audio and subtitle tracks. Loop, shuffle, and A-B your playlist. Open network streams with one click.
+Clean dark UI. Powered by mpv. Built for Windows.
 
-Powered by mpv. Built for Windows. Clean dark UI.
+Download free.
 
-Download free and play everything.
-
-#VPlayer #MediaPlayer #WindowsApps #mpv #VideoPlayer #Playlist #Streaming
+#VPlayer #MediaPlayer #WindowsApps #mpv #VideoPlayer
 
 5. TAGS
-VPlayer, media player, Windows player, mpv, video player, resume playback, playlist shuffle, stream player, subtitles, free player
+VPlayer, media player, Windows player, mpv, video player, playlist, stream player, resume, free player, desktop app
 
 6. IMAGE PROMPTS
-1. Dark media player home screen showing Recent Media cards with progress bars, indigo accents, product UI mockup
-2. Player controls bar highlighting repeat, shuffle, and A-B loop buttons glowing indigo
-3. Track menu open with audio and subtitle options selected, sleek overlay UI
-4. Open URL dialog with a stream link, modern desktop app aesthetic
-5. Fullscreen movie night scene with V Player timeline and A-B markers visible
+1. Sleek dark media player window with close button highlighted, indigo accents
+2. Recent Media grid with progress bars on a modern desktop
+3. Controls showing repeat shuffle A-B loop icons
+4. Open URL dialog for network streams
+5. Fullscreen movie playback with clean overlay chrome

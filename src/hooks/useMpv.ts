@@ -244,17 +244,37 @@ export function useMpv() {
       }
     }, POSITION_SAVE_MS);
 
+    let cancelled = false;
     let unlistenClose: (() => void) | undefined;
-    getCurrentWindow()
-      .onCloseRequested(async () => {
-        await savePlaybackPosition();
+    const win = getCurrentWindow();
+    win
+      .onCloseRequested(async (event) => {
+        // Take ownership of close so a hung IPC save cannot leave the window open.
+        event.preventDefault();
+        try {
+          await Promise.race([
+            savePlaybackPosition(),
+            new Promise<void>((resolve) => {
+              window.setTimeout(resolve, 400);
+            }),
+          ]);
+        } catch {
+          /* ignore */
+        }
+        try {
+          await win.destroy();
+        } catch (err) {
+          console.error("Failed to destroy window:", err);
+        }
       })
       .then((fn) => {
-        unlistenClose = fn;
+        if (cancelled) fn();
+        else unlistenClose = fn;
       })
       .catch(console.error);
 
     return () => {
+      cancelled = true;
       window.clearInterval(posInterval);
       unlistenClose?.();
       if (mpvInitialized.current) {
