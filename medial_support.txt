@@ -20,7 +20,7 @@ Download free.
 VPlayer, media player, Windows player, mpv, video player, playlist, stream player, resume, free player, desktop app
 
 6. IMAGE PROMPTS
-1. Sleek dark media player window with close button highlighted, indigo accents
+1. Sleek dark media player window with close button working, indigo accents
 2. Recent Media grid with progress bars on a modern desktop
 3. Controls showing repeat shuffle A-B loop icons
 4. Open URL dialog for network streams

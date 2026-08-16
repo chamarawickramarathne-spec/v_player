@@ -1,6 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   init,
   command,
@@ -244,39 +243,12 @@ export function useMpv() {
       }
     }, POSITION_SAVE_MS);
 
-    let cancelled = false;
-    let unlistenClose: (() => void) | undefined;
-    const win = getCurrentWindow();
-    win
-      .onCloseRequested(async (event) => {
-        // Take ownership of close so a hung IPC save cannot leave the window open.
-        event.preventDefault();
-        try {
-          await Promise.race([
-            savePlaybackPosition(),
-            new Promise<void>((resolve) => {
-              window.setTimeout(resolve, 400);
-            }),
-          ]);
-        } catch {
-          /* ignore */
-        }
-        try {
-          await win.destroy();
-        } catch (err) {
-          console.error("Failed to destroy window:", err);
-        }
-      })
-      .then((fn) => {
-        if (cancelled) fn();
-        else unlistenClose = fn;
-      })
-      .catch(console.error);
+    // Do NOT register onCloseRequested: Tauri then requires window.destroy()
+    // (needs core:window:allow-destroy). Without a listener, OS close works natively.
+    // Position is already saved on interval / stop / switch / EOF.
 
     return () => {
-      cancelled = true;
       window.clearInterval(posInterval);
-      unlistenClose?.();
       if (mpvInitialized.current) {
         void savePlaybackPosition();
         destroy().catch(console.error);

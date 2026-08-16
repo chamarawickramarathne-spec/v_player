@@ -1,13 +1,14 @@
-# AGENTS_PLAN — MOD 28 (Build 28)
+# AGENTS_PLAN — MOD 29 (Build 29)
 
 ## Goal
-Fix close button not closing the player.
+Fix close button still not working after MOD 28.
 
 ## Root cause
-onCloseRequested awaited savePlaybackPosition; Tauri destroy only after handler resolves.
+Missing `core:window:allow-destroy`; onCloseRequested path requires destroy IPC.
 
 ## Fix
-preventDefault + timed save + always destroy; cancel-safe listener.
+- Remove onCloseRequested from useMpv.ts
+- Add core:window:allow-destroy to capabilities
 
 ## Status
-- Done: code + build → release\VPlayer-Setup-x64.exe (v1.0.14)
+- Done: code + build → release\VPlayer-Setup-x64.exe (v1.0.15)
