@@ -6,9 +6,17 @@
 V Player is a modern media player for Windows (Tauri v2 + React 19 + TypeScript + Vite) using mpv/libmpv as the media engine. An Android port lives in `v-player-android/`.
 
 ## Current Version
-- **v1.0.12** - last updated: 2026-08-16 (Build 26)
+- **v1.0.13** - last updated: 2026-08-16 (Build 27)
 
 ## Mod Log
+
+### MOD 27 (Build 27) - 2026-08-16 - Recent+resume, tracks, loop/shuffle/A-B, Open URL
+- **Recent + resume**: `add_recent_file` preserves position; `openFile(path, startAt?)` seeks; position saved on stop/switch/EOF/10s/close; MediaGrid on empty home with remove/clear; resume if mid-file.
+- **Tracks**: `setTrack` sets mpv `vid`/`aid`/`sid`; SubtitleSelector wired; Load external subtitle dialog.
+- **Loop/shuffle/A-B**: `repeatMode` off|one|all (`loop-file` + client wrap); client shuffle order; A-B via mpv `ab-loop-a/b` + ProgressBar markers; Controls + keys R/S/A.
+- **Open URL**: Ctrl+U + title-bar URL; `isPlayableSource`/`isUrl`; network-timeout 60s.
+- Files: `useMpv.ts`, `media.ts`, `playerStore`, `App.tsx`, `Controls`, `ProgressBar`, `SubtitleSelector`, `MediaGrid`, `OpenUrlDialog`, `recent_files.rs`, keyboard shortcuts.
+- Version 1.0.13.
 
 ### MOD 26 (Build 26) - 2026-08-16 - Fix drag-drop playlist duplicates + memory best-effort
 - **Drag-drop bug**: One drop created many same-name playlist rows. Root cause: `VideoSurface` Tauri `onDragDropEvent` re-registered on every unstable `onFileDrop` change; async setup raced cleanup and leaked listeners; `addToPlaylist` had no path dedup.

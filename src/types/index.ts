@@ -1,3 +1,5 @@
+export type RepeatMode = "off" | "one" | "all";
+
 export interface PlayerState {
   isPlaying: boolean;
   isPaused: boolean;
@@ -14,6 +16,11 @@ export interface PlayerState {
   trackList: Track[];
   playlist: PlaylistItem[];
   playlistIndex: number;
+  repeatMode: RepeatMode;
+  isShuffled: boolean;
+  shuffleOrder: number[] | null;
+  abLoopA: number | null;
+  abLoopB: number | null;
 }
 
 export interface Track {

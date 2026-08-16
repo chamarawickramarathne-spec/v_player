@@ -38,14 +38,20 @@ pub fn add_recent_file(
 ) -> Result<Vec<RecentFile>, String> {
     let mut files = state.recent_files.lock().map_err(|e| e.to_string())?;
 
+    let (kept_position, kept_duration) = files
+        .iter()
+        .find(|f| f.path == path)
+        .map(|f| (f.position, f.duration))
+        .unwrap_or((0.0, 0.0));
+
     files.retain(|f| f.path != path);
 
     let file = RecentFile {
         path,
         name,
         last_played: Utc::now().to_rfc3339(),
-        position: 0.0,
-        duration: 0.0,
+        position: kept_position,
+        duration: kept_duration,
         media_type,
     };
 

@@ -11,6 +11,8 @@ import PlaylistPanel from "./components/Player/PlaylistPanel";
 import SubtitleSelector from "./components/Player/SubtitleSelector";
 import SettingsPanel from "./components/Settings/SettingsPanel";
 import UpdateBadge from "./components/UpdateBadge";
+import MediaGrid from "./components/Library/MediaGrid";
+import OpenUrlDialog from "./components/OpenUrlDialog";
 
 type SettingsTab = "general" | "playback" | "about";
 
@@ -23,10 +25,11 @@ export default function App() {
   const [controlsVisible, setControlsVisible] = useState(true);
   const [showPlaylist, setShowPlaylist] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("general");
+  const [urlDialogOpen, setUrlDialogOpen] = useState(false);
+  const [recentKey, setRecentKey] = useState(0);
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFullscreen = usePlayerStore((s) => s.isFullscreen);
 
-  // Load persisted settings + silent update check on startup
   useEffect(() => {
     loadSettings();
     loadAppVersion();
@@ -34,17 +37,14 @@ export default function App() {
     checkForUpdates();
   }, [loadSettings, checkForUpdates, detectDownloadedUpdate, loadAppVersion]);
 
-  // Apply theme & accent
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", settings.theme);
     document.documentElement.style.setProperty("--accent", settings.accent_color);
-    // Derive hover from accent (lighten)
     document.documentElement.style.setProperty("--accent-hover", settings.accent_color + "dd");
     document.documentElement.style.setProperty("--accent-glow", settings.accent_color + "40");
     document.documentElement.style.setProperty("--accent-dim", settings.accent_color + "1a");
   }, [settings.theme, settings.accent_color]);
 
-  // Auto-hide controls
   const resetControlsTimer = useCallback(() => {
     setControlsVisible(true);
     if (controlsTimer.current) clearTimeout(controlsTimer.current);
@@ -59,6 +59,12 @@ export default function App() {
       if (controlsTimer.current) clearTimeout(controlsTimer.current);
     }
   }, [player.isPlaying]);
+
+  useEffect(() => {
+    if (!player.filePath) {
+      setRecentKey((k) => k + 1);
+    }
+  }, [player.filePath]);
 
   const handleMouseMove = useCallback(() => {
     resetControlsTimer();
@@ -108,6 +114,41 @@ export default function App() {
     [addToPlaylist, openFile],
   );
 
+  const handleOpenUrl = useCallback(
+    async (url: string) => {
+      const autoOpen = await addToPlaylist([url]);
+      const toPlay = autoOpen ?? url;
+      await openFile(toPlay);
+      if (autoOpen) setPlaylistIndex(0);
+    },
+    [addToPlaylist, openFile, setPlaylistIndex],
+  );
+
+  const handleRecentSelect = useCallback(
+    async (path: string, resumeAt?: number) => {
+      const autoOpen = await addToPlaylist([path]);
+      await openFile(path, resumeAt);
+      if (autoOpen) setPlaylistIndex(0);
+    },
+    [addToPlaylist, openFile, setPlaylistIndex],
+  );
+
+  const handleLoadSubtitle = useCallback(async () => {
+    const selected = await open({
+      multiple: false,
+      filters: [
+        {
+          name: "Subtitles",
+          extensions: ["srt", "ass", "ssa", "vtt", "sub", "idx", "sup"],
+        },
+        { name: "All Files", extensions: ["*"] },
+      ],
+    });
+    if (selected && typeof selected === "string") {
+      await player.loadSubtitle(selected);
+    }
+  }, [player]);
+
   const handleToggleFullscreen = useCallback(async () => {
     if (document.fullscreenElement) {
       await document.exitFullscreen();
@@ -142,6 +183,7 @@ export default function App() {
     onMute: player.toggleMute,
     onFullscreen: handleToggleFullscreen,
     onOpenFile: handleOpenFile,
+    onOpenUrl: () => setUrlDialogOpen(true),
     onNextFrame: player.nextFrame,
     onPrevFrame: player.prevFrame,
     onSpeedUp: handleSpeedUp,
@@ -150,6 +192,9 @@ export default function App() {
     onNextTrack: player.playlistNext,
     onPrevTrack: player.playlistPrev,
     onTogglePlaylist: () => setShowPlaylist((v) => !v),
+    onCycleRepeat: player.cycleRepeat,
+    onToggleShuffle: player.toggleShuffle,
+    onCycleAbLoop: player.cycleAbLoop,
   });
 
   const handleSelectPlaylistItem = useCallback(
@@ -165,6 +210,7 @@ export default function App() {
 
   const showTitleBar = !isFullscreen || controlsVisible;
   const isVideoPlaying = !player.isStopped && !!player.filePath && player.mediaType === "video";
+  const showRecent = !player.filePath;
 
   return (
     <div
@@ -180,7 +226,6 @@ export default function App() {
         transition: "background 0.4s ease",
       }}
     >
-      {/* Title Bar */}
       {showTitleBar && (
         <div
           data-tauri-drag-region
@@ -202,7 +247,6 @@ export default function App() {
             flexShrink: 0,
           } as React.CSSProperties}
         >
-          {/* Left: Brand */}
           <div style={{ display: "flex", alignItems: "center", gap: "8px" } as React.CSSProperties}>
             <div
               style={{
@@ -232,12 +276,9 @@ export default function App() {
             >
               V Player
             </span>
-
-            {/* Version + update */}
             <UpdateBadge />
           </div>
 
-          {/* Right: Actions */}
           <div
             style={{
               display: "flex",
@@ -245,7 +286,6 @@ export default function App() {
               gap: "4px",
             } as React.CSSProperties}
           >
-            {/* Open button */}
             <button
               onClick={handleOpenFile}
               style={{
@@ -277,7 +317,35 @@ export default function App() {
               Open
             </button>
 
-            {/* Playlist toggle */}
+            <button
+              onClick={() => setUrlDialogOpen(true)}
+              title="Open URL (Ctrl+U)"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 12px",
+                borderRadius: "8px",
+                fontSize: "12px",
+                fontWeight: 500,
+                color: "var(--text-secondary)",
+                transition: "all 0.2s",
+                border: "1px solid var(--border)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "var(--accent-dim)";
+                e.currentTarget.style.borderColor = "var(--accent)";
+                e.currentTarget.style.color = "var(--accent)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.borderColor = "var(--border)";
+                e.currentTarget.style.color = "var(--text-secondary)";
+              }}
+            >
+              URL
+            </button>
+
             <button
               onClick={() => setShowPlaylist(!showPlaylist)}
               style={{
@@ -302,10 +370,12 @@ export default function App() {
               </svg>
             </button>
 
-            {/* Subtitle selector */}
-            <SubtitleSelector tracks={player.trackList} onSetTrack={(type, idx) => {}} />
+            <SubtitleSelector
+              tracks={player.trackList}
+              onSetTrack={player.setTrack}
+              onLoadSubtitle={handleLoadSubtitle}
+            />
 
-            {/* Settings */}
             <button
               onClick={() => setSettingsOpen(!settingsOpen)}
               style={{
@@ -329,24 +399,28 @@ export default function App() {
               title="Settings"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
+                <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
               </svg>
             </button>
           </div>
         </div>
       )}
 
-      {/* Main Content Area */}
       <div style={{ flex: 1, position: "relative", overflow: "hidden", minHeight: 0 }}>
+        {showRecent ? (
+          <div style={{ position: "absolute", inset: 0, zIndex: 5, background: "var(--bg-primary)" }}>
+            <MediaGrid onSelectFile={handleRecentSelect} refreshKey={recentKey} />
+          </div>
+        ) : null}
+
         <VideoSurface
           onFileDrop={handleDrop}
           onClick={player.togglePlay}
           onDoubleClick={handleToggleFullscreen}
         />
 
-        {/* Controls overlay */}
         <Controls
-          visible={controlsVisible}
+          visible={controlsVisible && !!player.filePath}
           onTogglePlay={player.togglePlay}
           onStop={player.stop}
           onNextTrack={player.playlistNext}
@@ -358,9 +432,11 @@ export default function App() {
           onOpenFile={handleOpenFile}
           onSpeedUp={handleSpeedUp}
           onSpeedDown={handleSpeedDown}
+          onCycleRepeat={player.cycleRepeat}
+          onToggleShuffle={player.toggleShuffle}
+          onCycleAbLoop={player.cycleAbLoop}
         />
 
-        {/* Playlist panel */}
         <PlaylistPanel
           visible={showPlaylist}
           playlist={player.playlist}
@@ -398,12 +474,17 @@ export default function App() {
         />
       </div>
 
-      {/* Settings dialog */}
       <SettingsPanel
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         activeTab={settingsTab}
         onTabChange={setSettingsTab}
+      />
+
+      <OpenUrlDialog
+        isOpen={urlDialogOpen}
+        onClose={() => setUrlDialogOpen(false)}
+        onOpen={handleOpenUrl}
       />
     </div>
   );

@@ -12,6 +12,7 @@ interface ShortcutHandlers {
   onMute: () => void;
   onFullscreen: () => void;
   onOpenFile: () => void;
+  onOpenUrl?: () => void;
   onNextFrame: () => void;
   onPrevFrame: () => void;
   onSpeedUp: () => void;
@@ -20,6 +21,9 @@ interface ShortcutHandlers {
   onNextTrack: () => void;
   onPrevTrack: () => void;
   onTogglePlaylist: () => void;
+  onCycleRepeat?: () => void;
+  onToggleShuffle?: () => void;
+  onCycleAbLoop?: () => void;
 }
 
 export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
@@ -69,6 +73,13 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
             handlers.onOpenFile();
           }
           break;
+        case "u":
+        case "U":
+          if (e.ctrlKey) {
+            e.preventDefault();
+            handlers.onOpenUrl?.();
+          }
+          break;
         case ".":
           handlers.onNextFrame();
           break;
@@ -95,6 +106,18 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
         case "l":
         case "L":
           handlers.onTogglePlaylist();
+          break;
+        case "r":
+        case "R":
+          handlers.onCycleRepeat?.();
+          break;
+        case "s":
+        case "S":
+          if (!e.ctrlKey) handlers.onToggleShuffle?.();
+          break;
+        case "a":
+        case "A":
+          if (!e.ctrlKey) handlers.onCycleAbLoop?.();
           break;
       }
     },

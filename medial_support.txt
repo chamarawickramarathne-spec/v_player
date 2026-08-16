@@ -2,28 +2,28 @@
 V Player
 
 2. SHORT DESCRIPTION
-A fast, modern Windows media player powered by mpv — video, audio, and images in one sleek app.
+Modern Windows media player with resume, playlists, streams, and mpv-powered playback.
 
 3. LONG DESCRIPTION
-V Player is a lightweight desktop media player for Windows built with Tauri and the industry-proven mpv engine. Play virtually any video, audio, or image format with hardware decoding, a clean dark UI, playlist management, drag-and-drop, keyboard shortcuts, and one-click updates from GitHub. Designed for speed and low overhead: capped demuxer cache, efficient UI updates, and a focused feature set without bloat.
+V Player is a fast desktop media player for Windows built on Tauri and mpv. Play local video, audio, and images; open network URLs and streams; manage playlists with shuffle and repeat; set A-B loops; switch audio and subtitle tracks; resume where you left off from Recent Media. One-click updates from GitHub keep you current.
 
 4. FACEBOOK POST
-Meet V Player — your new go-to media player for Windows.
+V Player just got smarter.
 
-Drop in a video, song, or photo and it just plays. Built on the powerful mpv engine with a modern dark interface, full playlist support, drag-and-drop, and smart one-click updates.
+Resume your movies from Recent Media. Switch audio and subtitle tracks. Loop, shuffle, and A-B your playlist. Open network streams with one click.
 
-Fast. Clean. Format-friendly.
+Powered by mpv. Built for Windows. Clean dark UI.
 
-Download free and take control of your media library.
+Download free and play everything.
 
-#VPlayer #MediaPlayer #WindowsApps #mpv #OpenSource #VideoPlayer #AudioPlayer #DesktopApp
+#VPlayer #MediaPlayer #WindowsApps #mpv #VideoPlayer #Playlist #Streaming
 
 5. TAGS
-VPlayer, media player, Windows player, mpv player, video player, audio player, desktop app, dark theme, playlist, free player
+VPlayer, media player, Windows player, mpv, video player, resume playback, playlist shuffle, stream player, subtitles, free player
 
 6. IMAGE PROMPTS
-1. Sleek dark media player window on a desktop, indigo accent glow, playing a cinematic landscape video, soft ambient lighting, product screenshot style
-2. Minimalist app icon: bold letter V with a play triangle, deep indigo to violet gradient, glossy glass texture, app store quality
-3. User dragging a video file onto V Player, translucent drop overlay with dashed indigo border, modern UI mockup
-4. Side-by-side: crowded old media player vs clean V Player interface, before/after marketing graphic
-5. Night desk setup with ultrawide monitor showing V Player fullscreen movie, bokeh city lights, premium lifestyle photo
+1. Dark media player home screen showing Recent Media cards with progress bars, indigo accents, product UI mockup
+2. Player controls bar highlighting repeat, shuffle, and A-B loop buttons glowing indigo
+3. Track menu open with audio and subtitle options selected, sleek overlay UI
+4. Open URL dialog with a stream link, modern desktop app aesthetic
+5. Fullscreen movie night scene with V Player timeline and A-B markers visible

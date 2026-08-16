@@ -3,16 +3,17 @@ import { invoke } from "@tauri-apps/api/core";
 import type { RecentFile } from "../../types";
 
 interface MediaGridProps {
-  onSelectFile: (path: string) => void;
+  onSelectFile: (path: string, resumeAt?: number) => void;
+  refreshKey?: number;
 }
 
-export default function MediaGrid({ onSelectFile }: MediaGridProps) {
+export default function MediaGrid({ onSelectFile, refreshKey = 0 }: MediaGridProps) {
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadRecentFiles();
-  }, []);
+  }, [refreshKey]);
 
   const loadRecentFiles = async () => {
     try {
@@ -22,6 +23,33 @@ export default function MediaGrid({ onSelectFile }: MediaGridProps) {
       console.error("Failed to load recent files:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSelect = (file: RecentFile) => {
+    const canResume =
+      file.position > 0 &&
+      file.duration > 0 &&
+      file.position < file.duration - 5;
+    onSelectFile(file.path, canResume ? file.position : undefined);
+  };
+
+  const handleRemove = async (e: React.MouseEvent, path: string) => {
+    e.stopPropagation();
+    try {
+      const files = (await invoke("remove_recent_file", { path })) as RecentFile[];
+      setRecentFiles(files);
+    } catch (err) {
+      console.error("Failed to remove recent file:", err);
+    }
+  };
+
+  const handleClear = async () => {
+    try {
+      await invoke("clear_recent_files");
+      setRecentFiles([]);
+    } catch (err) {
+      console.error("Failed to clear recent files:", err);
     }
   };
 
@@ -151,6 +179,18 @@ export default function MediaGrid({ onSelectFile }: MediaGridProps) {
             {recentFiles.length} file{recentFiles.length !== 1 ? "s" : ""} played recently
           </p>
         </div>
+        <button
+          onClick={handleClear}
+          style={{
+            fontSize: 12,
+            color: "var(--text-muted)",
+            padding: "6px 10px",
+            borderRadius: 8,
+            border: "1px solid var(--border)",
+          }}
+        >
+          Clear all
+        </button>
       </div>
 
       <div
@@ -163,7 +203,7 @@ export default function MediaGrid({ onSelectFile }: MediaGridProps) {
         {recentFiles.map((file, index) => (
           <div
             key={file.path}
-            onClick={() => onSelectFile(file.path)}
+            onClick={() => handleSelect(file)}
             style={{
               background: "var(--bg-secondary)",
               borderRadius: "var(--radius)",
@@ -173,6 +213,7 @@ export default function MediaGrid({ onSelectFile }: MediaGridProps) {
               border: "1px solid var(--border)",
               overflow: "hidden",
               animation: `fadeInUp 0.4s ease-out ${index * 0.03}s both`,
+              position: "relative",
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = "translateY(-4px)";
@@ -185,6 +226,24 @@ export default function MediaGrid({ onSelectFile }: MediaGridProps) {
               e.currentTarget.style.borderColor = "var(--border)";
             }}
           >
+            <button
+              onClick={(e) => handleRemove(e, file.path)}
+              title="Remove"
+              style={{
+                position: "absolute",
+                top: 10,
+                right: 10,
+                width: 24,
+                height: 24,
+                borderRadius: 6,
+                background: "var(--bg-tertiary)",
+                color: "var(--text-muted)",
+                zIndex: 2,
+                fontSize: 12,
+              }}
+            >
+              ×
+            </button>
             {/* Media type header */}
             <div
               style={{

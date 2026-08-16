@@ -4,9 +4,10 @@ import type { Track } from "../../types";
 interface SubtitleSelectorProps {
   tracks: Track[];
   onSetTrack: (type: string, index: number) => void;
+  onLoadSubtitle?: () => void;
 }
 
-export default function SubtitleSelector({ tracks, onSetTrack }: SubtitleSelectorProps) {
+export default function SubtitleSelector({ tracks, onSetTrack, onLoadSubtitle }: SubtitleSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -24,7 +25,7 @@ export default function SubtitleSelector({ tracks, onSetTrack }: SubtitleSelecto
   const audioTracks = tracks.filter((t) => t.type === "audio");
   const subTracks = tracks.filter((t) => t.type === "sub");
 
-  if (tracks.length === 0) return null;
+  if (tracks.length === 0 && !onLoadSubtitle) return null;
 
   return (
     <div ref={panelRef} style={{ position: "relative" }}>
@@ -197,6 +198,27 @@ export default function SubtitleSelector({ tracks, onSetTrack }: SubtitleSelecto
                   <span style={{ flex: 1 }}>{track.lang || track.name || `Track ${track.id + 1}`}</span>
                 </button>
               ))}
+            </>
+          )}
+
+          {onLoadSubtitle && (
+            <>
+              <div style={{ height: 1, background: "var(--border)", margin: "6px 0" }} />
+              <button
+                onClick={() => { onLoadSubtitle(); setIsOpen(false); }}
+                style={{
+                  display: "flex",
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "8px 14px",
+                  fontSize: "13px",
+                  color: "var(--text-primary)",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+              >
+                Load external subtitle…
+              </button>
             </>
           )}
         </div>

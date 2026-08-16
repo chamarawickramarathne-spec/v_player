@@ -15,6 +15,9 @@ interface ControlsProps {
   onOpenFile: () => void;
   onSpeedUp: () => void;
   onSpeedDown: () => void;
+  onCycleRepeat: () => void;
+  onToggleShuffle: () => void;
+  onCycleAbLoop: () => void;
 }
 
 const ControlButton = ({
@@ -23,12 +26,14 @@ const ControlButton = ({
   title,
   size = 36,
   isAccent = false,
+  active = false,
 }: {
   children: React.ReactNode;
   onClick: () => void;
   title: string;
   size?: number;
   isAccent?: boolean;
+  active?: boolean;
 }) => (
   <button
     onClick={onClick}
@@ -40,8 +45,8 @@ const ControlButton = ({
       width: `${size}px`,
       height: `${size}px`,
       borderRadius: "50%",
-      background: isAccent ? "var(--accent)" : "transparent",
-      color: isAccent ? "white" : "var(--text-secondary)",
+      background: isAccent ? "var(--accent)" : active ? "var(--accent-dim)" : "transparent",
+      color: isAccent ? "white" : active ? "var(--accent)" : "var(--text-secondary)",
       transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
       position: "relative",
       overflow: "hidden",
@@ -62,8 +67,8 @@ const ControlButton = ({
         e.currentTarget.style.transform = "scale(1)";
         e.currentTarget.style.boxShadow = "none";
       } else {
-        e.currentTarget.style.background = "transparent";
-        e.currentTarget.style.color = "var(--text-secondary)";
+        e.currentTarget.style.background = active ? "var(--accent-dim)" : "transparent";
+        e.currentTarget.style.color = active ? "var(--accent)" : "var(--text-secondary)";
       }
     }}
   >
@@ -84,6 +89,9 @@ export default function Controls({
   onOpenFile,
   onSpeedUp,
   onSpeedDown,
+  onCycleRepeat,
+  onToggleShuffle,
+  onCycleAbLoop,
 }: ControlsProps) {
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const currentTime = usePlayerStore((s) => s.currentTime);
@@ -92,6 +100,10 @@ export default function Controls({
   const filePath = usePlayerStore((s) => s.filePath);
   const mediaTitle = usePlayerStore((s) => s.mediaTitle);
   const isFullscreen = usePlayerStore((s) => s.isFullscreen);
+  const repeatMode = usePlayerStore((s) => s.repeatMode);
+  const isShuffled = usePlayerStore((s) => s.isShuffled);
+  const abLoopA = usePlayerStore((s) => s.abLoopA);
+  const abLoopB = usePlayerStore((s) => s.abLoopB);
 
   const formatTime = (seconds: number) => {
     if (!seconds || !isFinite(seconds)) return "0:00";
@@ -302,6 +314,53 @@ export default function Controls({
           >
             {"]"}
           </button>
+
+          <div style={{ width: "1px", height: "24px", background: "var(--border)", margin: "0 6px" }} />
+
+          <ControlButton
+            onClick={onCycleRepeat}
+            title={
+              repeatMode === "off"
+                ? "Repeat off (R)"
+                : repeatMode === "one"
+                  ? "Repeat one (R)"
+                  : "Repeat all (R)"
+            }
+            active={repeatMode !== "off"}
+          >
+            {repeatMode === "one" ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z" />
+                <text x="12" y="15.5" textAnchor="middle" fontSize="8" fontWeight="700" fill="currentColor">1</text>
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z" />
+              </svg>
+            )}
+          </ControlButton>
+
+          <ControlButton onClick={onToggleShuffle} title="Shuffle (S)" active={isShuffled}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z" />
+            </svg>
+          </ControlButton>
+
+          <ControlButton
+            onClick={onCycleAbLoop}
+            title={
+              abLoopA === null
+                ? "A-B loop: set A"
+                : abLoopB === null
+                  ? "A-B loop: set B"
+                  : "A-B loop: clear"
+            }
+            active={abLoopA !== null}
+          >
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "-0.5px" }}>
+              {abLoopA !== null && abLoopB !== null ? "AB" : abLoopA !== null ? "A·" : "A-B"}
+            </span>
+          </ControlButton>
 
           <div style={{ width: "1px", height: "24px", background: "var(--border)", margin: "0 6px" }} />
 

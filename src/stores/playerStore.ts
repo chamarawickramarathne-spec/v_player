@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { PlayerState, PlaylistItem } from "../types";
+import type { PlayerState, PlaylistItem, RepeatMode } from "../types";
 
 interface PlayerActions {
   setPlaying: (playing: boolean) => void;
@@ -20,6 +20,11 @@ interface PlayerActions {
   removeFromPlaylist: (index: number) => void;
   reorderPlaylist: (fromIndex: number, toIndex: number) => void;
   clearPlaylist: () => void;
+  setRepeatMode: (mode: RepeatMode) => void;
+  setShuffled: (shuffled: boolean, order: number[] | null) => void;
+  setAbLoopA: (t: number | null) => void;
+  setAbLoopB: (t: number | null) => void;
+  clearAbLoop: () => void;
   reset: () => void;
 }
 
@@ -39,6 +44,11 @@ const initialState: PlayerState = {
   trackList: [],
   playlist: [],
   playlistIndex: -1,
+  repeatMode: "off",
+  isShuffled: false,
+  shuffleOrder: null,
+  abLoopA: null,
+  abLoopB: null,
 };
 
 export const usePlayerStore = create<PlayerState & PlayerActions>((set) => ({
@@ -82,8 +92,24 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set) => ({
         newPlaylistIndex = state.playlistIndex + 1;
       }
 
-      return { playlist: newPlaylist, playlistIndex: newPlaylistIndex };
+      return {
+        playlist: newPlaylist,
+        playlistIndex: newPlaylistIndex,
+        isShuffled: false,
+        shuffleOrder: null,
+      };
     }),
-  clearPlaylist: () => set({ playlist: [], playlistIndex: -1 }),
+  clearPlaylist: () =>
+    set({
+      playlist: [],
+      playlistIndex: -1,
+      isShuffled: false,
+      shuffleOrder: null,
+    }),
+  setRepeatMode: (repeatMode) => set({ repeatMode }),
+  setShuffled: (isShuffled, shuffleOrder) => set({ isShuffled, shuffleOrder }),
+  setAbLoopA: (abLoopA) => set({ abLoopA }),
+  setAbLoopB: (abLoopB) => set({ abLoopB }),
+  clearAbLoop: () => set({ abLoopA: null, abLoopB: null }),
   reset: () => set(initialState),
 }));

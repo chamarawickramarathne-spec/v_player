@@ -1,4 +1,6 @@
 import { useEffect, useRef, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   init,
   command,
@@ -11,10 +13,18 @@ import {
 } from "tauri-plugin-libmpv-api";
 import { usePlayerStore } from "../stores/playerStore";
 import { useSettingsStore } from "../stores/settingsStore";
-import { getMediaType, isMediaFile, normalizePath } from "../lib/media";
-import type { PlaylistItem, PlayerState } from "../types";
+import {
+  getMediaType,
+  isPlayableSource,
+  isUrl,
+  sourceKey,
+  displayName,
+} from "../lib/media";
+import type { PlaylistItem, PlayerState, RepeatMode } from "../types";
 
 const TIME_POS_MIN_MS = 100;
+const POSITION_SAVE_MS = 10000;
+const RESUME_END_MARGIN = 5;
 
 const OBSERVED_PROPERTIES = [
   ["pause", "flag"],
@@ -25,14 +35,96 @@ const OBSERVED_PROPERTIES = [
   ["volume", "double"],
   ["mute", "flag"],
   ["speed", "double"],
-  ["playlist-pos", "int64", "none"],
   ["track-list", "node"],
 ] as const;
 
+function buildShuffleOrder(length: number, currentIndex: number): number[] {
+  const rest = Array.from({ length }, (_, i) => i).filter((i) => i !== currentIndex);
+  for (let i = rest.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [rest[i], rest[j]] = [rest[j], rest[i]];
+  }
+  if (currentIndex >= 0 && currentIndex < length) {
+    return [currentIndex, ...rest];
+  }
+  return rest;
+}
+
+function resolveNextIndex(store: PlayerState, direction: 1 | -1): number {
+  const { playlist, playlistIndex, repeatMode, isShuffled, shuffleOrder } = store;
+  if (playlist.length === 0) return -1;
+
+  if (isShuffled && shuffleOrder && shuffleOrder.length > 0) {
+    const pos = shuffleOrder.indexOf(playlistIndex);
+    const start = pos >= 0 ? pos : 0;
+    const nextPos = start + direction;
+    if (nextPos >= 0 && nextPos < shuffleOrder.length) {
+      return shuffleOrder[nextPos];
+    }
+    if (repeatMode === "all") {
+      return direction === 1 ? shuffleOrder[0] : shuffleOrder[shuffleOrder.length - 1];
+    }
+    return -1;
+  }
+
+  const next = playlistIndex + direction;
+  if (next >= 0 && next < playlist.length) return next;
+  if (repeatMode === "all" && playlist.length > 0) {
+    return direction === 1 ? 0 : playlist.length - 1;
+  }
+  return -1;
+}
+
+async function savePlaybackPosition() {
+  const store = usePlayerStore.getState();
+  const { filePath, currentTime, duration, mediaType } = store;
+  if (!filePath || isUrl(filePath)) return;
+  if (mediaType === "image") return;
+  if (!duration || duration <= 0 || !isFinite(currentTime)) return;
+
+  let position = currentTime;
+  if (position >= duration - RESUME_END_MARGIN) {
+    position = 0;
+  }
+
+  try {
+    await invoke("update_position", {
+      path: filePath,
+      position,
+      duration,
+    });
+  } catch (err) {
+    console.error("Failed to save position:", err);
+  }
+}
+
+async function addRecent(filePath: string, mediaType: string) {
+  if (isUrl(filePath)) return;
+  try {
+    await invoke("add_recent_file", {
+      path: filePath,
+      name: displayName(filePath),
+      mediaType,
+    });
+  } catch (err) {
+    console.error("Failed to add recent file:", err);
+  }
+}
+
+async function clearAbLoopMpv() {
+  try {
+    await setProperty("ab-loop-a", "no");
+    await setProperty("ab-loop-b", "no");
+  } catch {
+    /* ignore */
+  }
+  usePlayerStore.getState().clearAbLoop();
+}
+
 export function useMpv() {
   const mpvInitialized = useRef(false);
+  const openFileRef = useRef<(path: string, startAt?: number) => Promise<void>>(async () => {});
 
-  // Initialize mpv on mount
   useEffect(() => {
     if (mpvInitialized.current) return;
 
@@ -49,6 +141,7 @@ export function useMpv() {
         "demuxer-max-bytes": "104857600",
         "demuxer-max-back-bytes": "52428800",
         "demuxer-readahead-secs": "10",
+        "network-timeout": "60",
       },
       observedProperties: OBSERVED_PROPERTIES,
     };
@@ -98,9 +191,6 @@ export function useMpv() {
             case "speed":
               if (typeof data === "number") store.setSpeed(data);
               break;
-            case "playlist-pos":
-              if (data !== null) store.setPlaylistIndex(data as number);
-              break;
             case "track-list":
               if (Array.isArray(data)) {
                 usePlayerStore.setState({
@@ -118,75 +208,109 @@ export function useMpv() {
           }
         });
 
-        // Listen for mpv events (eof, start-file, etc.)
         listenEvents((event: MpvEvent) => {
           if (event.event === "end-file") {
             const reason = (event as any).reason;
             if (reason === "eof") {
-              // Auto-advance playlist on end of file
               const store = usePlayerStore.getState();
-              const nextIndex = store.playlistIndex + 1;
-              if (nextIndex < store.playlist.length) {
-                // Play next item
+              void savePlaybackPosition();
+
+              if (store.repeatMode === "one") {
+                return;
+              }
+
+              const nextIndex = resolveNextIndex(store, 1);
+              if (nextIndex >= 0) {
                 const nextItem = store.playlist[nextIndex];
-                command("loadfile", [nextItem.path, "replace"]).then(() => {
-                  store.setPlaylistIndex(nextIndex);
-                  store.setFilePath(nextItem.path);
-                  store.setMediaType(nextItem.mediaType as PlayerState["mediaType"]);
-                }).catch(console.error);
+                void openFileRef.current(nextItem.path).then(() => {
+                  usePlayerStore.getState().setPlaylistIndex(nextIndex);
+                });
               } else {
-                // Last item finished - stop
                 store.setStopped(true);
               }
             }
           }
         });
 
-        // Restore volume from settings
-        command("set", ["volume", Math.round(settings.volume * 100)]).catch(
-          console.error
-        );
+        command("set", ["volume", Math.round(settings.volume * 100)]).catch(console.error);
       })
       .catch((err) => {
         console.error("Failed to initialize mpv:", err);
       });
 
+    const posInterval = window.setInterval(() => {
+      if (usePlayerStore.getState().isPlaying) {
+        void savePlaybackPosition();
+      }
+    }, POSITION_SAVE_MS);
+
+    let unlistenClose: (() => void) | undefined;
+    getCurrentWindow()
+      .onCloseRequested(async () => {
+        await savePlaybackPosition();
+      })
+      .then((fn) => {
+        unlistenClose = fn;
+      })
+      .catch(console.error);
+
     return () => {
+      window.clearInterval(posInterval);
+      unlistenClose?.();
       if (mpvInitialized.current) {
+        void savePlaybackPosition();
         destroy().catch(console.error);
         mpvInitialized.current = false;
       }
     };
   }, []);
 
-  const openFile = useCallback(async (filePath: string) => {
+  const openFile = useCallback(async (filePath: string, startAt?: number) => {
     if (!mpvInitialized.current) return;
     try {
+      await savePlaybackPosition();
+      await clearAbLoopMpv();
+
       await command("loadfile", [filePath, "replace"]);
       const mediaType = getMediaType(filePath);
-      usePlayerStore.getState().setFilePath(filePath);
-      usePlayerStore.getState().setMediaType(mediaType);
-      usePlayerStore.getState().setPlaying(true);
+      const store = usePlayerStore.getState();
+      store.setFilePath(filePath);
+      store.setMediaType(mediaType);
+      store.setPlaying(true);
+      store.setCurrentTime(0);
+
+      await addRecent(filePath, mediaType);
+
+      if (startAt && startAt > 0 && isFinite(startAt)) {
+        const seekTo = startAt;
+        window.setTimeout(() => {
+          command("seek", [seekTo, "absolute"])
+            .then(() => usePlayerStore.getState().setCurrentTime(seekTo))
+            .catch(console.error);
+        }, 250);
+      }
     } catch (err) {
       console.error("Failed to open file:", err);
     }
   }, []);
 
-  /** Returns first path to auto-open when playlist was empty; otherwise null. */
+  openFileRef.current = openFile;
+
   const addToPlaylist = useCallback(async (paths: string[]): Promise<string | null> => {
     const store = usePlayerStore.getState();
-    const existing = new Set(store.playlist.map((item) => normalizePath(item.path)));
+    const existing = new Set(store.playlist.map((item) => sourceKey(item.path)));
     const newItems: PlaylistItem[] = [];
 
     for (const path of paths) {
-      if (!isMediaFile(path)) continue;
-      const key = normalizePath(path);
+      const trimmed = path.trim();
+      if (!isPlayableSource(trimmed)) continue;
+      const key = sourceKey(trimmed);
       if (existing.has(key)) continue;
       existing.add(key);
       newItems.push({
-        path,
-        name: path.split(/[\\/]/).pop() || path,
-        mediaType: getMediaType(path),
+        path: trimmed,
+        name: displayName(trimmed),
+        mediaType: getMediaType(trimmed),
       });
     }
 
@@ -196,6 +320,12 @@ export function useMpv() {
     usePlayerStore.setState({
       playlist: [...store.playlist, ...newItems],
       ...(wasEmpty ? { playlistIndex: 0 } : {}),
+      ...(store.isShuffled
+        ? {
+            isShuffled: false,
+            shuffleOrder: null,
+          }
+        : {}),
     });
 
     return wasEmpty ? newItems[0].path : null;
@@ -214,6 +344,8 @@ export function useMpv() {
   const stop = useCallback(async () => {
     if (!mpvInitialized.current) return;
     try {
+      await savePlaybackPosition();
+      await clearAbLoopMpv();
       await command("stop");
       usePlayerStore.getState().setStopped(true);
     } catch (err) {
@@ -311,10 +443,65 @@ export function useMpv() {
     }
   }, []);
 
+  const setTrack = useCallback(async (type: string, id: number) => {
+    if (!mpvInitialized.current) return;
+    const prop = type === "video" ? "vid" : type === "audio" ? "aid" : "sid";
+    try {
+      await setProperty(prop, id < 0 ? "no" : id);
+    } catch (err) {
+      console.error("Set track failed:", err);
+    }
+  }, []);
+
+  const cycleRepeat = useCallback(async () => {
+    const store = usePlayerStore.getState();
+    const order: RepeatMode[] = ["off", "one", "all"];
+    const next = order[(order.indexOf(store.repeatMode) + 1) % order.length];
+    store.setRepeatMode(next);
+    if (!mpvInitialized.current) return;
+    try {
+      await setProperty("loop-file", next === "one" ? "inf" : "no");
+    } catch (err) {
+      console.error("Set loop-file failed:", err);
+    }
+  }, []);
+
+  const toggleShuffle = useCallback(() => {
+    const store = usePlayerStore.getState();
+    if (store.isShuffled) {
+      store.setShuffled(false, null);
+      return;
+    }
+    if (store.playlist.length < 2) return;
+    const order = buildShuffleOrder(store.playlist.length, store.playlistIndex);
+    store.setShuffled(true, order);
+  }, []);
+
+  const cycleAbLoop = useCallback(async () => {
+    if (!mpvInitialized.current) return;
+    const store = usePlayerStore.getState();
+    const t = store.currentTime;
+
+    try {
+      if (store.abLoopA === null) {
+        await setProperty("ab-loop-a", t);
+        store.setAbLoopA(t);
+      } else if (store.abLoopB === null) {
+        const b = Math.max(t, store.abLoopA + 0.1);
+        await setProperty("ab-loop-b", b);
+        store.setAbLoopB(b);
+      } else {
+        await clearAbLoopMpv();
+      }
+    } catch (err) {
+      console.error("A-B loop failed:", err);
+    }
+  }, []);
+
   const playlistNext = useCallback(async () => {
     const store = usePlayerStore.getState();
-    const nextIndex = store.playlistIndex + 1;
-    if (nextIndex < store.playlist.length) {
+    const nextIndex = resolveNextIndex(store, 1);
+    if (nextIndex >= 0) {
       const nextItem = store.playlist[nextIndex];
       await openFile(nextItem.path);
       usePlayerStore.getState().setPlaylistIndex(nextIndex);
@@ -323,7 +510,7 @@ export function useMpv() {
 
   const playlistPrev = useCallback(async () => {
     const store = usePlayerStore.getState();
-    const prevIndex = store.playlistIndex - 1;
+    const prevIndex = resolveNextIndex(store, -1);
     if (prevIndex >= 0) {
       const prevItem = store.playlist[prevIndex];
       await openFile(prevItem.path);
@@ -343,7 +530,6 @@ export function useMpv() {
     if (index < store.playlistIndex) {
       newIndex = store.playlistIndex - 1;
     } else if (index === store.playlistIndex) {
-      // Removing currently playing item
       if (newPlaylist.length === 0) {
         await stop();
         newIndex = -1;
@@ -358,6 +544,8 @@ export function useMpv() {
     usePlayerStore.setState({
       playlist: newPlaylist,
       playlistIndex: newIndex,
+      isShuffled: false,
+      shuffleOrder: null,
     });
   }, [openFile, stop]);
 
@@ -383,6 +571,10 @@ export function useMpv() {
   const trackList = usePlayerStore((s) => s.trackList);
   const playlist = usePlayerStore((s) => s.playlist);
   const playlistIndex = usePlayerStore((s) => s.playlistIndex);
+  const repeatMode = usePlayerStore((s) => s.repeatMode);
+  const isShuffled = usePlayerStore((s) => s.isShuffled);
+  const abLoopA = usePlayerStore((s) => s.abLoopA);
+  const abLoopB = usePlayerStore((s) => s.abLoopB);
 
   return {
     isPlaying,
@@ -398,6 +590,10 @@ export function useMpv() {
     trackList,
     playlist,
     playlistIndex,
+    repeatMode,
+    isShuffled,
+    abLoopA,
+    abLoopB,
 
     openFile,
     addToPlaylist,
@@ -413,11 +609,16 @@ export function useMpv() {
     prevFrame,
     loadScreenshot,
     loadSubtitle,
+    setTrack,
+    cycleRepeat,
+    toggleShuffle,
+    cycleAbLoop,
     playlistNext,
     playlistPrev,
     removeFromPlaylist,
     reorderPlaylist,
     clearPlaylist,
     setPlaylistIndex,
+    savePlaybackPosition,
   };
 }

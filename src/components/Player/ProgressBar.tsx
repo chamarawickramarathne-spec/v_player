@@ -8,6 +8,8 @@ interface ProgressBarProps {
 export default function ProgressBar({ onSeek }: ProgressBarProps) {
   const currentTime = usePlayerStore((s) => s.currentTime);
   const duration = usePlayerStore((s) => s.duration);
+  const abLoopA = usePlayerStore((s) => s.abLoopA);
+  const abLoopB = usePlayerStore((s) => s.abLoopB);
   const barRef = useRef<HTMLDivElement>(null);
   const [hoverTime, setHoverTime] = useState<number | null>(null);
   const [hoverX, setHoverX] = useState(0);
@@ -114,6 +116,52 @@ export default function ProgressBar({ onSeek }: ProgressBarProps) {
             boxShadow: isHovered || isDragging ? "0 0 12px var(--accent-glow)" : "none",
           }}
         />
+
+        {abLoopA !== null && duration > 0 && (
+          <div
+            style={{
+              position: "absolute",
+              left: `${(abLoopA / duration) * 100}%`,
+              top: -4,
+              bottom: -4,
+              width: 2,
+              background: "var(--accent)",
+              pointerEvents: "none",
+              transform: "translateX(-50%)",
+              opacity: 0.9,
+            }}
+          />
+        )}
+        {abLoopB !== null && duration > 0 && (
+          <div
+            style={{
+              position: "absolute",
+              left: `${(abLoopB / duration) * 100}%`,
+              top: -4,
+              bottom: -4,
+              width: 2,
+              background: "var(--accent)",
+              pointerEvents: "none",
+              transform: "translateX(-50%)",
+              opacity: 0.9,
+            }}
+          />
+        )}
+        {abLoopA !== null && abLoopB !== null && duration > 0 && (
+          <div
+            style={{
+              position: "absolute",
+              left: `${(Math.min(abLoopA, abLoopB) / duration) * 100}%`,
+              width: `${(Math.abs(abLoopB - abLoopA) / duration) * 100}%`,
+              top: 0,
+              height: "100%",
+              background: "var(--accent)",
+              opacity: 0.2,
+              pointerEvents: "none",
+              borderRadius: 4,
+            }}
+          />
+        )}
 
         {/* Hover preview line */}
         {hoverTime !== null && !isDragging && (
