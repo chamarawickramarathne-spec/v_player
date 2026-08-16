@@ -19,11 +19,82 @@ import {
   sourceKey,
   displayName,
 } from "../lib/media";
+import { prepareThumbPath, resolveThumbUrl } from "../lib/thumbnails";
+import { cancelThumbGen } from "../lib/thumbGen";
 import type { PlaylistItem, PlayerState, RepeatMode } from "../types";
 
 const TIME_POS_MIN_MS = 100;
 const POSITION_SAVE_MS = 10000;
 const RESUME_END_MARGIN = 5;
+const THUMB_SEEK_SETTLE_MS = 350;
+
+let markMpvReady: (ready: boolean) => void = () => {};
+export const mpvReady = new Promise<boolean>((resolve) => {
+  markMpvReady = resolve;
+});
+
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+async function captureVideoThumbnail(filePath: string, startAt?: number) {
+  if (!filePath || isUrl(filePath)) return;
+  if (getMediaType(filePath) !== "video") return;
+
+  try {
+    const existing = await resolveThumbUrl(filePath);
+    if (existing) return;
+
+    const thumbPath = await prepareThumbPath(filePath);
+    if (!thumbPath) return;
+
+    let duration = usePlayerStore.getState().duration;
+    for (let waited = 0; waited < 8000 && !(duration > 0); waited += 200) {
+      await sleep(200);
+      if (usePlayerStore.getState().filePath !== filePath) return;
+      duration = usePlayerStore.getState().duration;
+    }
+    if (usePlayerStore.getState().filePath !== filePath) return;
+    if (!(duration > 0)) return;
+
+    const { currentTime } = usePlayerStore.getState();
+    const resuming = typeof startAt === "number" && startAt > 2;
+    let restoreTo: number | null = null;
+
+    if (!resuming && duration > 5 && currentTime < 1.5) {
+      const target = Math.min(10, Math.max(1, duration * 0.1));
+      restoreTo = startAt && startAt > 0 ? startAt : 0;
+      try {
+        await command("seek", [target, "absolute"]);
+        await sleep(THUMB_SEEK_SETTLE_MS);
+      } catch {
+        restoreTo = null;
+      }
+      if (usePlayerStore.getState().filePath !== filePath) return;
+    }
+
+    await command("screenshot-to-file", [thumbPath]);
+    await sleep(250);
+
+    const exists = (await invoke("get_thumbnail_path", { path: filePath })) as string | null;
+    if (!exists) {
+      await command("screenshot-to-file", [thumbPath]);
+    }
+
+    if (restoreTo !== null && usePlayerStore.getState().filePath === filePath) {
+      try {
+        await command("seek", [restoreTo, "absolute"]);
+        usePlayerStore.getState().setCurrentTime(restoreTo);
+      } catch {
+        /* ignore */
+      }
+    }
+  } catch (err) {
+    console.error("Thumbnail capture failed:", err);
+  }
+}
 
 const OBSERVED_PROPERTIES = [
   ["pause", "flag"],
@@ -148,6 +219,7 @@ export function useMpv() {
     init(mpvConfig)
       .then(() => {
         mpvInitialized.current = true;
+        markMpvReady(true);
         console.log("mpv initialized successfully");
 
         let lastTimePosMs = 0;
@@ -234,6 +306,7 @@ export function useMpv() {
         command("set", ["volume", Math.round(settings.volume * 100)]).catch(console.error);
       })
       .catch((err) => {
+        markMpvReady(false);
         console.error("Failed to initialize mpv:", err);
       });
 
@@ -259,6 +332,7 @@ export function useMpv() {
 
   const openFile = useCallback(async (filePath: string, startAt?: number) => {
     if (!mpvInitialized.current) return;
+    cancelThumbGen();
     try {
       await savePlaybackPosition();
       await clearAbLoopMpv();
@@ -281,6 +355,8 @@ export function useMpv() {
             .catch(console.error);
         }, 250);
       }
+
+      void captureVideoThumbnail(filePath, startAt);
     } catch (err) {
       console.error("Failed to open file:", err);
     }

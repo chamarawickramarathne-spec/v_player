@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { RecentFile } from "../../types";
+import { localFileUrl, resolveThumbUrl } from "../../lib/thumbnails";
+import { cancelThumbGen, generateMissingThumbs } from "../../lib/thumbGen";
 
 interface MediaGridProps {
   onSelectFile: (path: string, resumeAt?: number) => void;
@@ -10,15 +12,48 @@ interface MediaGridProps {
 export default function MediaGrid({ onSelectFile, refreshKey = 0 }: MediaGridProps) {
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
+  const [failedThumbs, setFailedThumbs] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     loadRecentFiles();
   }, [refreshKey]);
 
+  useEffect(() => {
+    return () => cancelThumbGen();
+  }, []);
+
   const loadRecentFiles = async () => {
     try {
       const files = (await invoke("get_recent_files")) as RecentFile[];
       setRecentFiles(files);
+      setFailedThumbs({});
+
+      const urls: Record<string, string> = {};
+      await Promise.all(
+        files.map(async (file) => {
+          if (file.media_type === "image") {
+            const u = localFileUrl(file.path);
+            if (u) urls[file.path] = u;
+            return;
+          }
+          if (file.media_type === "video") {
+            const u = await resolveThumbUrl(file.path);
+            if (u) urls[file.path] = u;
+          }
+        })
+      );
+      setThumbUrls(urls);
+
+      const missing = files
+        .filter((f) => f.media_type === "video" && !urls[f.path])
+        .map((f) => f.path);
+      if (missing.length > 0) {
+        generateMissingThumbs(missing, async (mediaPath) => {
+          const u = await resolveThumbUrl(mediaPath);
+          if (u) setThumbUrls((prev) => ({ ...prev, [mediaPath]: u }));
+        });
+      }
     } catch (err) {
       console.error("Failed to load recent files:", err);
     } finally {
@@ -39,6 +74,11 @@ export default function MediaGrid({ onSelectFile, refreshKey = 0 }: MediaGridPro
     try {
       const files = (await invoke("remove_recent_file", { path })) as RecentFile[];
       setRecentFiles(files);
+      setThumbUrls((prev) => {
+        const next = { ...prev };
+        delete next[path];
+        return next;
+      });
     } catch (err) {
       console.error("Failed to remove recent file:", err);
     }
@@ -48,6 +88,7 @@ export default function MediaGrid({ onSelectFile, refreshKey = 0 }: MediaGridPro
     try {
       await invoke("clear_recent_files");
       setRecentFiles([]);
+      setThumbUrls({});
     } catch (err) {
       console.error("Failed to clear recent files:", err);
     }
@@ -119,49 +160,34 @@ export default function MediaGrid({ onSelectFile, refreshKey = 0 }: MediaGridPro
 
   if (recentFiles.length === 0) {
     return (
-      <div
-        style={{
+      <div style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "100%",
+        gap: "16px",
+        padding: "40px",
+        textAlign: "center",
+      }}>
+        <div style={{
+          width: 72,
+          height: 72,
+          borderRadius: 18,
+          background: "var(--bg-secondary)",
+          border: "1px solid var(--border)",
           display: "flex",
-          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          height: "100%",
-          gap: "20px",
-          animation: "fadeInUp 0.5s ease-out",
-        }}
-      >
-        <div
-          style={{
-            width: "80px",
-            height: "80px",
-            borderRadius: "50%",
-            background: "var(--bg-tertiary)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            border: "1px solid var(--border)",
-          }}
-        >
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
+        }}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="var(--text-muted)">
+            <path d="M8 5v14l11-7z" />
           </svg>
         </div>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "16px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "6px" }}>
-            No recent media
-          </div>
-          <div style={{ fontSize: "13px", color: "var(--text-muted)", lineHeight: 1.5 }}>
-            Open a file with{" "}
-            <kbd style={{
-              padding: "2px 8px",
-              borderRadius: "4px",
-              background: "var(--bg-tertiary)",
-              border: "1px solid var(--border)",
-              fontSize: "11px",
-              fontFamily: "monospace",
-            }}>Ctrl+O</kbd>{" "}
-            to get started
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 6 }}>No recent media</div>
+          <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
+            Open a file with Ctrl+O or drop media here
           </div>
         </div>
       </div>
@@ -169,24 +195,35 @@ export default function MediaGrid({ onSelectFile, refreshKey = 0 }: MediaGridPro
   }
 
   return (
-    <div style={{ padding: "24px", overflowY: "auto", height: "100%", animation: "fadeIn 0.3s ease-out" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
+    <div style={{ height: "100%", overflow: "auto", padding: "24px 28px 40px" }}>
+      <style>{`
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginBottom: 20,
+      }}>
         <div>
-          <h2 style={{ fontSize: "22px", fontWeight: 700, margin: "0 0 4px 0", letterSpacing: "-0.02em" }}>
-            Recent Media
-          </h2>
-          <p style={{ fontSize: "13px", color: "var(--text-muted)", margin: 0 }}>
-            {recentFiles.length} file{recentFiles.length !== 1 ? "s" : ""} played recently
-          </p>
+          <div style={{ fontSize: 20, fontWeight: 700 }}>Recent</div>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
+            {recentFiles.length} item{recentFiles.length === 1 ? "" : "s"}
+          </div>
         </div>
         <button
           onClick={handleClear}
           style={{
             fontSize: 12,
             color: "var(--text-muted)",
-            padding: "6px 10px",
-            borderRadius: 8,
+            background: "var(--bg-secondary)",
             border: "1px solid var(--border)",
+            borderRadius: 8,
+            padding: "6px 12px",
           }}
         >
           Clear all
@@ -196,156 +233,205 @@ export default function MediaGrid({ onSelectFile, refreshKey = 0 }: MediaGridPro
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-          gap: "14px",
+          gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+          gap: "16px",
         }}
       >
-        {recentFiles.map((file, index) => (
-          <div
-            key={file.path}
-            onClick={() => handleSelect(file)}
-            style={{
-              background: "var(--bg-secondary)",
-              borderRadius: "var(--radius)",
-              padding: "0",
-              cursor: "pointer",
-              transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
-              border: "1px solid var(--border)",
-              overflow: "hidden",
-              animation: `fadeInUp 0.4s ease-out ${index * 0.03}s both`,
-              position: "relative",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "translateY(-4px)";
-              e.currentTarget.style.boxShadow = "var(--shadow-lg)";
-              e.currentTarget.style.borderColor = "var(--accent)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "none";
-              e.currentTarget.style.borderColor = "var(--border)";
-            }}
-          >
-            <button
-              onClick={(e) => handleRemove(e, file.path)}
-              title="Remove"
+        {recentFiles.map((file, index) => {
+          const thumb = !failedThumbs[file.path] ? thumbUrls[file.path] : undefined;
+          const progress =
+            file.duration > 0 && file.position > 0
+              ? Math.min(100, (file.position / file.duration) * 100)
+              : 0;
+
+          return (
+            <div
+              key={file.path}
+              onClick={() => handleSelect(file)}
               style={{
-                position: "absolute",
-                top: 10,
-                right: 10,
-                width: 24,
-                height: 24,
-                borderRadius: 6,
-                background: "var(--bg-tertiary)",
-                color: "var(--text-muted)",
-                zIndex: 2,
-                fontSize: 12,
+                background: "var(--bg-secondary)",
+                borderRadius: "var(--radius)",
+                padding: "0",
+                cursor: "pointer",
+                transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                border: "1px solid var(--border)",
+                overflow: "hidden",
+                animation: `fadeInUp 0.4s ease-out ${index * 0.03}s both`,
+                position: "relative",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-4px)";
+                e.currentTarget.style.boxShadow = "var(--shadow-lg)";
+                e.currentTarget.style.borderColor = "var(--accent)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "none";
+                e.currentTarget.style.borderColor = "var(--border)";
               }}
             >
-              ×
-            </button>
-            {/* Media type header */}
-            <div
-              style={{
-                height: "4px",
-                background: getMediaColor(file.media_type),
-              }}
-            />
+              <button
+                onClick={(e) => handleRemove(e, file.path)}
+                title="Remove"
+                style={{
+                  position: "absolute",
+                  top: 8,
+                  right: 8,
+                  width: 26,
+                  height: 26,
+                  borderRadius: 6,
+                  background: "rgba(0,0,0,0.55)",
+                  color: "#fff",
+                  zIndex: 3,
+                  fontSize: 14,
+                  border: "none",
+                  lineHeight: 1,
+                }}
+              >
+                ×
+              </button>
 
-            <div style={{ padding: "14px 16px" }}>
-              {/* Icon + Title */}
-              <div style={{ display: "flex", alignItems: "flex-start", gap: "12px", marginBottom: "12px" }}>
-                <div
-                  style={{
-                    width: "40px",
-                    height: "40px",
-                    borderRadius: "10px",
-                    background: getMediaColor(file.media_type),
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                    boxShadow: `0 4px 12px ${file.media_type === "video" ? "rgba(99, 102, 241, 0.3)" : file.media_type === "audio" ? "rgba(236, 72, 153, 0.3)" : "rgba(34, 197, 94, 0.3)"}`,
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
-                    <path d={getMediaIcon(file.media_type)} />
-                  </svg>
-                </div>
-                <div style={{ minWidth: 0, flex: 1 }}>
+              <div
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  paddingTop: "56.25%",
+                  background: getMediaColor(file.media_type),
+                  overflow: "hidden",
+                }}
+              >
+                {thumb ? (
+                  <img
+                    src={thumb}
+                    alt=""
+                    onError={() =>
+                      setFailedThumbs((prev) => ({ ...prev, [file.path]: true }))
+                    }
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
+                  />
+                ) : (
                   <div
                     style={{
-                      fontSize: "14px",
-                      fontWeight: 600,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      lineHeight: 1.3,
+                      position: "absolute",
+                      inset: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
                   >
-                    {file.name}
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="white" style={{ opacity: 0.9 }}>
+                      <path d={getMediaIcon(file.media_type)} />
+                    </svg>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
-                    <span style={{
-                      fontSize: "10px",
-                      fontWeight: 600,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.5px",
-                      color: "var(--text-muted)",
-                      padding: "2px 6px",
-                      borderRadius: "4px",
-                      background: "var(--bg-tertiary)",
-                    }}>
-                      {file.media_type}
-                    </span>
-                  </div>
-                </div>
-              </div>
+                )}
 
-              {/* Meta info */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-                  {formatDate(file.last_played)}
+                <span
+                  style={{
+                    position: "absolute",
+                    left: 8,
+                    bottom: 8,
+                    fontSize: 10,
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.4px",
+                    color: "#fff",
+                    padding: "2px 6px",
+                    borderRadius: 4,
+                    background: "rgba(0,0,0,0.55)",
+                  }}
+                >
+                  {file.media_type}
                 </span>
+
                 {file.duration > 0 && (
-                  <span style={{
-                    fontSize: "11px",
-                    fontFamily: "'SF Mono', 'Cascadia Code', monospace",
-                    color: "var(--text-muted)",
-                    padding: "2px 8px",
-                    borderRadius: "4px",
-                    background: "var(--bg-tertiary)",
-                  }}>
-                    {formatTime(file.position)} / {formatTime(file.duration)}
+                  <span
+                    style={{
+                      position: "absolute",
+                      right: 8,
+                      bottom: 8,
+                      fontSize: 11,
+                      fontFamily: "'SF Mono', 'Cascadia Code', monospace",
+                      color: "#fff",
+                      padding: "2px 6px",
+                      borderRadius: 4,
+                      background: "rgba(0,0,0,0.55)",
+                    }}
+                  >
+                    {formatTime(file.duration)}
                   </span>
+                )}
+
+                {progress > 0 && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      height: 3,
+                      background: "rgba(0,0,0,0.35)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: "100%",
+                        width: `${progress}%`,
+                        background: "var(--accent)",
+                      }}
+                    />
+                  </div>
                 )}
               </div>
 
-              {/* Progress bar */}
-              {file.duration > 0 && file.position > 0 && (
+              <div style={{ padding: "12px 14px 14px" }}>
                 <div
                   style={{
-                    marginTop: "10px",
-                    height: "3px",
-                    background: "var(--progress-bg)",
-                    borderRadius: "2px",
+                    fontSize: "13px",
+                    fontWeight: 600,
                     overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    lineHeight: 1.35,
+                  }}
+                  title={file.name}
+                >
+                  {file.name}
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginTop: 6,
+                    gap: 8,
                   }}
                 >
-                  <div
-                    style={{
-                      height: "100%",
-                      width: `${(file.position / file.duration) * 100}%`,
-                      background: getMediaColor(file.media_type),
-                      borderRadius: "2px",
-                      transition: "width 0.3s",
-                    }}
-                  />
+                  <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                    {formatDate(file.last_played)}
+                  </span>
+                  {file.duration > 0 && file.position > 0 && (
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        fontFamily: "'SF Mono', 'Cascadia Code', monospace",
+                        color: "var(--text-muted)",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {formatTime(file.position)}
+                    </span>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

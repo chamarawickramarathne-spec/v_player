@@ -1,27 +1,21 @@
-1. TITLE
+1. Title
 V Player
 
-2. SHORT DESCRIPTION
-Modern Windows media player with resume, playlists, streams, and reliable window controls.
+2. Short description
+Modern Windows media player powered by mpv — play almost any video, audio, or image with a clean recent library, real video thumbnails, and resume.
 
-3. LONG DESCRIPTION
-V Player is a fast desktop media player for Windows built on Tauri and mpv. Play local media and network streams, manage playlists with shuffle and repeat, switch tracks, resume from Recent Media, and close cleanly every time. One-click updates keep you current.
+3. Long description
+V Player is a fast, modern media player for Windows built with Tauri and the mpv engine. Open local files or network streams, build playlists, resume where you left off, and browse recent media with real video thumbnails generated automatically. Supports a wide range of video, audio, and image formats, hardware decoding, subtitles, loop/shuffle/A-B, and one-click updates from GitHub Releases.
 
-4. FACEBOOK POST
-V Player — play anything, resume where you left off, open streams, loop and shuffle your playlist.
+4. Facebook post text
+Meet V Player — a sleek Windows media player powered by mpv. Play virtually any format, resume mid-file, and see real video thumbnails in your recent library. Clean UI, playlists, subtitles, loop & shuffle. Free and fast. Try it today!
 
-Clean dark UI. Powered by mpv. Built for Windows.
+5. Tags
+VPlayer, MediaPlayer, WindowsApp, mpv, VideoPlayer, OpenSource, DesktopApp, MusicPlayer, Tauri, Streaming
 
-Download free.
-
-#VPlayer #MediaPlayer #WindowsApps #mpv #VideoPlayer
-
-5. TAGS
-VPlayer, media player, Windows player, mpv, video player, playlist, stream player, resume, free player, desktop app
-
-6. IMAGE PROMPTS
-1. Sleek dark media player window with close button working, indigo accents
-2. Recent Media grid with progress bars on a modern desktop
-3. Controls showing repeat shuffle A-B loop icons
-4. Open URL dialog for network streams
-5. Fullscreen movie playback with clean overlay chrome
+6. Image prompts
+1. Dark modern media player window showing a grid of recent videos with colorful movie-frame thumbnails, soft purple accent glow, minimal UI, product screenshot style
+2. Cinematic desk setup with V Player on a ultrawide monitor displaying a film still and progress bar, moody lighting, marketing hero image
+3. Close-up of a media library card with a realistic video thumbnail, play icon overlay, and resume progress bar, app UI mockup
+4. Abstract purple and indigo gradient background with floating film frames and waveform shapes, tech brand aesthetic for V Player
+5. Side-by-side before/after: generic file icons vs rich video thumbnails in a recent media grid, clean SaaS-style illustration

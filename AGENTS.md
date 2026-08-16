@@ -6,9 +6,29 @@
 V Player is a modern media player for Windows (Tauri v2 + React 19 + TypeScript + Vite) using mpv/libmpv as the media engine. An Android port lives in `v-player-android/`.
 
 ## Current Version
-- **v1.0.15** - last updated: 2026-08-16 (Build 29)
+- **v1.0.17** - last updated: 2026-08-16 (Build 31)
 
 ## Mod Log
+
+### MOD 31 (Build 31) - 2026-08-16 - Thumbnails actually show: asset protocol + idle generator + PNG
+- **Root cause 1 (display)**: `tauri.conf.json` had no `assetProtocol`, so `AssetProtocolConfig.enable` defaulted to **false** → the `protocol-asset` cargo feature never compiled → `convertFileSrc` / `asset.localhost` URLs always failed → `<img>` fell back to icons for both video AND image thumbs.
+  - Fix: added `security.assetProtocol = { enable: true, scope: ["**"] }`.
+- **Root cause 2 (existing recents)**: thumbs were only captured on `openFile`, so files never re-opened since v1.0.16 stayed icons.
+  - Fix: new `src/lib/thumbGen.ts` — idle generator. MediaGrid, on load, queues videos without a cached thumb and captures via main mpv (mute+pause, `loadfile` → poll duration → seek ~10% → `screenshot-to-file` → verify). Cards update live as each lands. Cancelled by `openFile` / unmount; always restores mute; skips `stop`/pause-restore when a file was opened. Waits for `mpvReady` promise exported from `useMpv.ts`.
+- **Harden capture-on-play**: waits until `duration > 0` (polls up to 8s), retries screenshot if verify fails.
+- **PNG**: thumb cache extension `.jpg` → `.png` (mpv `screenshot-to-file` formats by extension; PNG more reliable + better quality).
+- Files: `tauri.conf.json`, `thumbnails.rs`, `src/lib/thumbGen.ts`, `src/lib/thumbnails.ts`, `useMpv.ts`, `MediaGrid.tsx`.
+- Version 1.0.17.
+
+### MOD 30 (Build 30) - 2026-08-16 - Recent media video thumbnails
+- Recent grid shows real video frame posters (16:9) instead of type icons only.
+- Cache: `~/.vplayer/thumbs/{hash}.jpg` via Rust `thumbnails.rs` (`get_thumbnail_path`, `prepare_thumbnail_path`, `delete_thumbnail`).
+- Capture: after `openFile` settles, mpv `screenshot-to-file` once if missing; seeks to ~10% when starting near 0 (avoids black); resume uses current frame; no capture for URLs/audio/images.
+- Images use the file itself via `convertFileSrc` / asset URL.
+- Audio keeps gradient + icon. Thumb missing/error → icon fallback.
+- Remove/clear recent also deletes matching thumb files.
+- Files: `thumbnails.rs`, `lib.rs`, `recent_files.rs`, `src/lib/thumbnails.ts`, `useMpv.ts`, `MediaGrid.tsx`.
+- Version 1.0.16.
 
 ### MOD 29 (Build 29) - 2026-08-16 - Fix close button (remove onCloseRequested + allow-destroy)
 - **Root cause**: Any `onCloseRequested` forces Tauri to finish close via `window.destroy()`. Capabilities had `allow-close` but **not** `allow-destroy`, so destroy failed and X did nothing (MOD 28 preventDefault+destroy still denied).

@@ -6,6 +6,7 @@ mod file_handler;
 mod player;
 mod recent_files;
 mod settings;
+mod thumbnails;
 mod updater;
 
 pub struct AppState {
@@ -95,6 +96,9 @@ pub fn run() {
             recent_files::remove_recent_file,
             recent_files::clear_recent_files,
             recent_files::update_position,
+            thumbnails::get_thumbnail_path,
+            thumbnails::prepare_thumbnail_path,
+            thumbnails::delete_thumbnail,
             settings::get_settings,
             settings::update_settings,
             file_handler::get_supported_extensions,

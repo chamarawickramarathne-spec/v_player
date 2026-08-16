@@ -78,6 +78,7 @@ pub fn remove_recent_file(
 ) -> Result<Vec<RecentFile>, String> {
     let mut files = state.recent_files.lock().map_err(|e| e.to_string())?;
     files.retain(|f| f.path != path);
+    crate::thumbnails::delete_thumb_for_path(&path);
     let _ = save_recent_to_disk(&files);
     Ok(files.clone())
 }
@@ -86,6 +87,7 @@ pub fn remove_recent_file(
 pub fn clear_recent_files(state: State<'_, AppState>) -> Result<Vec<RecentFile>, String> {
     let mut files = state.recent_files.lock().map_err(|e| e.to_string())?;
     files.clear();
+    crate::thumbnails::clear_all_thumbs();
     let _ = save_recent_to_disk(&files);
     Ok(files.clone())
 }
